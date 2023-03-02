@@ -3,6 +3,8 @@ ZERO_KNOWN_MD5="ac581b250fda7a10d07ad11884a16834"
 ZERO_KNOWN_MD5_UNZIPPED="2c7ab85a893283e98c931e9511add182"
 BOOTLOADER_KNOWN_MD5="46de85de37b8e670883e6f6a8bb95776"
 REQUIRED_PACKAGES="curl"
+UBUNTU_IMAGE_URL="https://github.com/radxa/debos-radxa/releases/download/20221031-1045/rock-5b-ubuntu-focal-server-arm64-20221031-1328-gpt.img.xz"
+UBUNTU_IMAGE="rock-5b-ubuntu-focal-server-arm64-20221031-1328-gpt.img.xz"
 
 WORKDIR=$HOME/flash
 [ -d $WORKDIR ] || mkdir $WORKDIR
@@ -48,7 +50,7 @@ function flash_spi() {
 
 	echo "Checking for flash block device"
 	[ -b /dev/mtdblock0 ] || { echo "No flash block device found, halting"; exit 1; }
-	echo "Found: /dev/mtdblock0, flashing zero.img..."
+	echo "Found: /dev/mtdblock0, flashing zero.img (this takes approximately 193 seconds)..."
 	sudo dd if=$WORKDIR/zero.img of=/dev/mtdblock0
 	BLOCK_MD5=$(sudo md5sum "/dev/mtdblock0" | awk '{print $1}')
 	echo "Validating md5"
@@ -56,7 +58,7 @@ function flash_spi() {
 	echo "$ZERO_MD5_UNZIPPED" | od -c
 	[ "$BLOCK_MD5" == "$ZERO_MD5_UNZIPPED" ] || { echo "MD5 of zero.img differs from /dev/mdtblock0, exiting"; exit 1; }
 
-	echo "MD5 validated, flashing m.2 enabled bootloader"
+	echo "MD5 validated, flashing m.2 enabled bootloader (this also takes approximately 193 seconds)..."
 	sudo dd if=$WORKDIR/rock-5b-spi-image-g49da44e116d.img of=/dev/mtdblock0
 	sync
 	SPI_BLOCK_MD5=$(sudo md5sum "/dev/mtdblock0" | awk '{print $1}')
@@ -67,5 +69,23 @@ function flash_spi() {
 	echo "Flash complete.  This device should now boot from a bootable M.2 PCIE drive"
 }
 
-update_packages
-flash_spi
+function install_os() {
+	echo "Installing operating system"
+	echo "Checking for M.2 block device"
+	[ -b /dev/nvme0n1 ] || { echo "Unable to locate /dev/nvme0n1, exiting"l exit 1; }
+	echo "Found /dev/nvme0n1"
+	sudo fdisk -l /dev/nvme0n1
+
+	echo "Nice, downloading operating system"
+	wget -O $WORKDIR/$UBUNTU_IMAGE $UBUNTU_IMAGE_URL
+	echo "Super, writing operating system to disk"
+	sudo xzcat $WORKDIR/$UBUNTU_IMAGE | dd of=/dev/nvme0n1 bs=1M status=progress
+
+	echo "Congratulations, the OS is written to disk"
+}
+
+#update_packages
+#flash_spi
+install_os
+
+
