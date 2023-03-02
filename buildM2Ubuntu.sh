@@ -31,9 +31,9 @@ function flash_spi() {
 
 	gzip -vd $WORKDIR/zero.img.gz
 	ZERO_MD5_UNZIPPED=$(md5sum "$WORKDIR/zero.img" |  awk '{print $1}')
-	echo "$ZERO_MD5_UNZIPED" | od -c
+	echo "$ZERO_MD5_UNZIPPED" | od -c
 	echo "$ZERO_KNOWN_MD5_UNZIPPED" | od -c
-	[ "$ZERO_MD5_UNZIPED" == "$ZERO_KNOWN_MD5_UNZIPPED" ] || { echo "MD5 values do not match, halting"; exit 1; }
+	[ "$ZERO_MD5_UNZIPPED" == "$ZERO_KNOWN_MD5_UNZIPPED" ] || { echo "MD5 values do not match, halting"; exit 1; }
 	echo "MD5 matches, proceeding with bootloader"
 
 	echo "Grabbing bootloader"
