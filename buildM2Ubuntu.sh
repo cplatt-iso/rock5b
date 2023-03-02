@@ -45,6 +45,26 @@ function flash_spi() {
 	[ "$BOOTLOADER_MD5" == "$BOOTLOADER_KNOWN_MD5" ] || { echo "MD5 values do not match, halting"; exit 1; }
 
 	echo "MD5 verification successful, proceeding with flash"
+
+	echo "Checking for flash block device"
+	[ -b /dev/mtdblock0 ] || { echo "No flash block device found, halting"; exit 1; }
+	echo "Found: /dev/mtdblock0, flashing zero.img..."
+	sudo dd if=$WORKDIR/zero.img of=/dev/mtdblock0
+	BLOCK_MD5=$(sudo md5sum "/dev/mtdblock0" | awk '{print $1}')
+	echo "Validating md5"
+	echo "$BLOCK_MD5" | od -c
+	echo "$ZERO_MD5_UNZIPPED" | od -c
+	[ "$BLOCK_MD5" == "$ZERO_MD5_UNZIPPED" ] || { echo "MD5 of zero.img differs from /dev/mdtblock0, exiting"; exit 1; }
+
+	echo "MD5 validated, flashing m.2 enabled bootloader"
+	sudo dd if=$WORKDIR/rock-5b-spi-image-g49da44e116d.img of=/dev/mtdblock0
+	sync
+	SPI_BLOCK_MD5=$(sudo md5sum "/dev/mtdblock0" | awk '{print $1}')
+	echo "$SPI_BLOCK_MD5" | od -c
+	echo "$BOOTLOADER_KNOWN_MD5" | od -c
+	[ "$SPI_BLOCK_MD5" == "$BOOTLOADER_KNOWN_MD5" ] || { echo "MD5 $WORKDIR/rock-5b-spi-image-g49da44e116d.img differs from /dev/mtdblock0, exiting"; exit 1; }
+
+	echo "Flash complete.  This device should now boot from a bootable M.2 PCIE drive"
 }
 
 update_packages
