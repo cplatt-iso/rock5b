@@ -79,7 +79,7 @@ function install_os() {
 	echo "Nice, downloading operating system"
 	wget -O $WORKDIR/$UBUNTU_IMAGE $UBUNTU_IMAGE_URL
 	echo "Super, writing operating system to disk"
-	sudo xzcat $WORKDIR/$UBUNTU_IMAGE | dd of=/dev/nvme0n1 bs=1M status=progress
+	sudo xzcat $WORKDIR/$UBUNTU_IMAGE | sudo dd of=/dev/nvme0n1 bs=1M status=progress
 
 	echo "Congratulations, the OS is written to disk"
 }
