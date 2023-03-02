@@ -31,6 +31,8 @@ function flash_spi() {
 
 	gzip -vd $WORKDIR/zero.img.gz
 	ZERO_MD5_UNZIPPED=$(md5sum "$WORKDIR/zero.img" |  awk '{print $1}')
+	echo "$ZERO_MD5_UNZIPED" | od -c
+	echo "$ZERO_KNOWN_MD5_UNZIPPED" | od -c
 	[ "$ZERO_MD5_UNZIPED" == "$ZERO_KNOWN_MD5_UNZIPPED" ] || { echo "MD5 values do not match, halting"; exit 1; }
 	echo "MD5 matches, proceeding with bootloader"
 
@@ -38,6 +40,8 @@ function flash_spi() {
 	wget -O $WORKDIR/rock-5b-spi-image-g49da44e116d.img https://dl.radxa.com/rock5/sw/images/loader/rock-5b/release/rock-5b-spi-image-g49da44e116d.img
 	echo "Verifying MD5 sum"
 	BOOTLOADER_MD5=$(md5sum "$WORKDIR/rock-5b-spi-image-g49da44e116d.img" |  awk '{print $1}')
+	echo "$BOOTLOADER_MD5" | od -c
+	echo "$BOOTLOADER_KNOWN_MD5" | od -c
 	[ "$BOOTLOADER_MD5" == "$BOOTLOADER_KNOWN_MD5" ] || { echo "MD5 values do not match, halting"; exit 1; }
 
 	echo "MD5 verification successful, proceeding with flash"
