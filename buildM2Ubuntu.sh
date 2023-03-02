@@ -9,10 +9,18 @@ WORKDIR=$HOME/flash
 echo "Caching sudo, default credentials are rock/rock"
 sudo -v
 
+echo "Updating repositories and fixing broken radxa public key"
+export DISTRO=focal-stable
+wget -O - apt.radxa.com/$DISTRO/public.key | sudo apt-key add -
+sudo apt update -y
+echo "Grabbing required packages"
+sudo apt install curl -y
+
 echo "Grabbing bootload zero fill file (reset SPI)"
 wget -O $WORKDIR/zero.img.gz https://dl.radxa.com/rock5/sw/images/others/zero.img.gz
 
 ZERO_MD5=`md5sum $WORKDIR/zero.img.gz`
+echo "downloaded: $ZERO_MD5 known: $ZERO_KNOWN_MD5"
 [ "$ZERO_MD5" == "$ZERO_KNOWN_MD5" ] || { echo "MD5 values do not match, halting"; exit 1; }
 echo "MD5 sum matched, unpacking and testing again"
 
