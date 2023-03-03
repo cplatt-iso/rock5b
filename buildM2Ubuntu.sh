@@ -2,7 +2,7 @@
 ZERO_KNOWN_MD5="ac581b250fda7a10d07ad11884a16834"
 ZERO_KNOWN_MD5_UNZIPPED="2c7ab85a893283e98c931e9511add182"
 BOOTLOADER_KNOWN_MD5="46de85de37b8e670883e6f6a8bb95776"
-REQUIRED_PACKAGES="curl docker.io python3 netplan.io ufw"
+REQUIRED_PACKAGES="curl docker.io python3 python3-pip netplan.io ufw"
 PYTHON_PIP_PACKAGES="mysql.connector pillow google google.api google.cloud"
 UBUNTU_IMAGE_URL="https://github.com/radxa/debos-radxa/releases/download/20221031-1045/rock-5b-ubuntu-focal-server-arm64-20221031-1328-gpt.img.xz"
 UBUNTU_IMAGE="rock-5b-ubuntu-focal-server-arm64-20221031-1328-gpt.img.xz"
@@ -134,12 +134,15 @@ echo "Drive fixed up, finished installing OS"
 }
 
 function customize_os() {
+echo "Mounting chroot envionment"
 sudo mount /dev/nvme0n1p2 /mnt
 sudo mount /dev/nvme0n1p1 /mnt/boot
 sudo mount --bind /dev /mnt/dev
 sudo mount --bind /dev/pts /mnt/dev/pts
 sudo mount --bind /proc /mnt/proc
 sudo mount --bind /sys /mnt/sys
+
+echo "Chroot..."
 sudo chroot /mnt /bin/bash <<EOF
 export DISTRO=focal-stable
 wget -O - apt.radxa.com/$DISTRO/public.key | sudo apt-key add -
@@ -151,22 +154,26 @@ sudo apt install $REQUIRED_PACKAGES -y
 echo "Installing required python modules"
 python3 -m pip install mysql.connector pillow google google.api google.cloud
 
-echo "Setting IP address in netplan, but will not apply"
-
-interface="enP4p65s0"
-
 cat <<EOB > /etc/netplan/01-static-ip.yaml
 network:
   version: 2
   renderer: networkd
   ethernets:
-    $interface:
+    $INET_INTERFACE:
       addresses:
         - $IPADDRESS
       gateway4: $GATEWAY
 EOB
 systemctl enable docker.service
 EOF
+
+echo "unmounting chroot"
+sudo umount /mnt/dev/pts
+sudo umount /mnt/dev
+sudo umount /mnt/proc
+sudo umount /mnt/sys
+sudo umount /mnt/boot
+sudo umount /mnt
 }
 
 function clean() {
