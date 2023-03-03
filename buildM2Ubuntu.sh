@@ -3,6 +3,7 @@ ZERO_KNOWN_MD5="ac581b250fda7a10d07ad11884a16834"
 ZERO_KNOWN_MD5_UNZIPPED="2c7ab85a893283e98c931e9511add182"
 BOOTLOADER_KNOWN_MD5="46de85de37b8e670883e6f6a8bb95776"
 REQUIRED_PACKAGES="curl docker.io python3 python3-pip netplan.io ufw"
+REQUIRED_PACKAGES_PREINSTALL="curl"
 PYTHON_PIP_PACKAGES="mysql.connector pillow google google.api google.cloud"
 UBUNTU_IMAGE_URL="https://github.com/radxa/debos-radxa/releases/download/20221031-1045/rock-5b-ubuntu-focal-server-arm64-20221031-1328-gpt.img.xz"
 UBUNTU_IMAGE="rock-5b-ubuntu-focal-server-arm64-20221031-1328-gpt.img.xz"
@@ -57,7 +58,7 @@ function update_packages() {
 	wget -O - apt.radxa.com/$DISTRO/public.key | sudo apt-key add -
 	sudo apt update -y
 	echo "Grabbing required packages"
-	sudo apt install $REQUIRED_PACKAGES -y
+	sudo apt install $REQUIRED_PACKAGES_PREINSTALL -y
 }
 
 function flash_spi() {
@@ -150,7 +151,7 @@ wget -O - apt.radxa.com/$DISTRO/public.key | sudo apt-key add -
 sudo apt update -y
 sudo apt upgrade -y
 sudo apt install $REQUIRED_PACKAGES -y
-python3 -m pip install mysql.connector pillow google google.api google.cloud
+python3 -m pip install $PYTHON_PIP_PACKAGES
 
 cat <<EOB > /etc/netplan/01-static-ip.yaml
 network:
@@ -179,8 +180,8 @@ rm -Rf $WORKDIR
 }
 
 get_inputs
-#update_packages
-#flash_spi
+update_packages
+flash_spi
 install_os
 customize_os
 clean
