@@ -2,12 +2,50 @@
 ZERO_KNOWN_MD5="ac581b250fda7a10d07ad11884a16834"
 ZERO_KNOWN_MD5_UNZIPPED="2c7ab85a893283e98c931e9511add182"
 BOOTLOADER_KNOWN_MD5="46de85de37b8e670883e6f6a8bb95776"
-REQUIRED_PACKAGES="curl"
+REQUIRED_PACKAGES="curl docker.io python3 netplan.io ufw"
+PYTHON_PIP_PACKAGES="mysql.connector pillow google google.api google.cloud"
 UBUNTU_IMAGE_URL="https://github.com/radxa/debos-radxa/releases/download/20221031-1045/rock-5b-ubuntu-focal-server-arm64-20221031-1328-gpt.img.xz"
 UBUNTU_IMAGE="rock-5b-ubuntu-focal-server-arm64-20221031-1328-gpt.img.xz"
+DISK=/dev/nvme0n1
 
 WORKDIR=$HOME/flash
 [ -d $WORKDIR ] || mkdir $WORKDIR
+
+function get_inputs() {
+	# get and validate IP
+	ip_regex="^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$"
+	while true; do
+		read -p "Enter an IP address in slash notation (e.g. 192.168.0.1/24): " IPADDRESS
+		if [[ $IPADDRESS =~ $ip_regex ]]; then
+  			break
+		else
+    			echo "You embarrass yourself, I hope no one was watching.  Try again."
+		fi
+	done
+
+	# get and validate GATEWAY
+	gw_regex="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
+	while true; do
+    		read -p "Gateway IP address (e.g. 192.168.0.1): " GATEWAY
+
+    		if [[ $GATEWAY =~ $gw_regex ]]; then
+        		break
+    		else
+        		echo "Invalid IP, you're fired."
+    		fi
+	done
+
+	# get and validate PNAME
+	pname_regex="^P.{3}$"
+	while true; do
+		read -p "Enter a 4 character proxy ID (PXXX): " PROXYID
+	      	if [[ $PROXYID =~ $pname_regex ]]; then
+        		break
+    		else
+        		echo "Seriously?  Its a 4 character code begnning with P! you can do it.. or maybe you cant?"
+    		fi
+	done
+}
 
 function update_packages() {
 	echo "Caching sudo, default credentials are rock/rock"
@@ -72,16 +110,27 @@ function flash_spi() {
 function install_os() {
 	echo "Installing operating system"
 	echo "Checking for M.2 block device"
-	[ -b /dev/nvme0n1 ] || { echo "Unable to locate /dev/nvme0n1, exiting"l exit 1; }
-	echo "Found /dev/nvme0n1"
-	sudo fdisk -l /dev/nvme0n1
+	[ -b $DISK ] || { echo "Unable to locate $DISK, exiting"l exit 1; }
+	echo "Found $DISK"
+	sudo fdisk -l $DISK
 
 	echo "Nice, downloading operating system"
 	wget -O $WORKDIR/$UBUNTU_IMAGE $UBUNTU_IMAGE_URL
 	echo "Super, writing operating system to disk"
 	sudo xzcat $WORKDIR/$UBUNTU_IMAGE | sudo dd of=/dev/nvme0n1 bs=1M status=progress
 
-	echo "Congratulations, the OS is written to disk"
+	echo "Fixing partitions to 100% of usable space"
+sudo gdisk $disk <<EOF
+x
+e
+w
+Y	
+Y
+EOF
+
+sudo e2fsck -f /dev/nvme0n1p2
+sudo resize2fs /dev/nvme0n1p2
+echo "Drive fixed up, finished installing OS"
 }
 
 function customize_os() {
@@ -95,7 +144,30 @@ sudo chroot /mnt
 export DISTRO=focal-stable
 wget -O - apt.radxa.com/$DISTRO/public.key | sudo apt-key add -
 sudo apt update -y
+sudo apt upgrade -y
 
+echo "Installing required packages"
+sudo apt install $REQUIRED_PACKAGES -y
+echo "Installing required python modules"
+python3 -m pip install mysql.connector pillow google google.api google.cloud
+
+echo "Setting IP address in netplan, but will not apply"
+
+interface="enP4p65s0"
+
+cat <<EOF > /etc/netplan/01-static-ip.yaml
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    $interface:
+      addresses:
+        - $IPADDRESS
+      gateway4: $GATEWAY
+EOF
+
+#enable some services
+systemctl enable docker.service
 }
 
 function clean() {
@@ -105,5 +177,6 @@ rm -Rf $WORKDIR
 #update_packages
 #flash_spi
 install_os
+customize_os
 clean
 
