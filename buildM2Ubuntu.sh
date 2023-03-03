@@ -84,8 +84,26 @@ function install_os() {
 	echo "Congratulations, the OS is written to disk"
 }
 
+function customize_os() {
+sudo mount /dev/nvme0n1p2 /mnt
+sudo mount /dev/nvme0n1p1 /mnt/boot
+sudo mount --bind /dev /mnt/dev
+sudo mount --bind /dev/pts /mnt/dev/pts
+sudo mount --bind /proc /mnt/proc
+sudo mount --bind /sys /mnt/sys
+sudo chroot /mnt
+export DISTRO=focal-stable
+wget -O - apt.radxa.com/$DISTRO/public.key | sudo apt-key add -
+sudo apt update -y
+
+}
+
+function clean() {
+rm -Rf $WORKDIR
+}
+
 #update_packages
 #flash_spi
 install_os
-
+clean
 
