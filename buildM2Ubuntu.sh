@@ -140,7 +140,7 @@ sudo mount --bind /dev /mnt/dev
 sudo mount --bind /dev/pts /mnt/dev/pts
 sudo mount --bind /proc /mnt/proc
 sudo mount --bind /sys /mnt/sys
-sudo chroot /mnt
+sudo chroot /mnt /bin/bash <<EOF
 export DISTRO=focal-stable
 wget -O - apt.radxa.com/$DISTRO/public.key | sudo apt-key add -
 sudo apt update -y
@@ -155,7 +155,7 @@ echo "Setting IP address in netplan, but will not apply"
 
 interface="enP4p65s0"
 
-cat <<EOF > /etc/netplan/01-static-ip.yaml
+cat <<EOB > /etc/netplan/01-static-ip.yaml
 network:
   version: 2
   renderer: networkd
@@ -164,10 +164,9 @@ network:
       addresses:
         - $IPADDRESS
       gateway4: $GATEWAY
-EOF
-
-#enable some services
+EOB
 systemctl enable docker.service
+EOF
 }
 
 function clean() {
