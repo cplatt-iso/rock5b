@@ -127,7 +127,7 @@ w
 Y	
 Y
 EOF
-
+sudo parted $DISK --script -- resizepart 2 100%
 sudo e2fsck -f /dev/nvme0n1p2
 sudo resize2fs /dev/nvme0n1p2
 echo "Drive fixed up, finished installing OS"
