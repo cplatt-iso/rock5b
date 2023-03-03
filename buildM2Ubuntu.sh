@@ -7,6 +7,7 @@ PYTHON_PIP_PACKAGES="mysql.connector pillow google google.api google.cloud"
 UBUNTU_IMAGE_URL="https://github.com/radxa/debos-radxa/releases/download/20221031-1045/rock-5b-ubuntu-focal-server-arm64-20221031-1328-gpt.img.xz"
 UBUNTU_IMAGE="rock-5b-ubuntu-focal-server-arm64-20221031-1328-gpt.img.xz"
 DISK=/dev/nvme0n1
+INET_INTERFACE="enP4p65s0"
 
 WORKDIR=$HOME/flash
 [ -d $WORKDIR ] || mkdir $WORKDIR
@@ -148,10 +149,7 @@ export DISTRO=focal-stable
 wget -O - apt.radxa.com/$DISTRO/public.key | sudo apt-key add -
 sudo apt update -y
 sudo apt upgrade -y
-
-echo "Installing required packages"
 sudo apt install $REQUIRED_PACKAGES -y
-echo "Installing required python modules"
 python3 -m pip install mysql.connector pillow google google.api google.cloud
 
 cat <<EOB > /etc/netplan/01-static-ip.yaml
