@@ -11,6 +11,7 @@ DISK=/dev/nvme0n1
 WORKDIR=$HOME/flash
 [ -d $WORKDIR ] || mkdir $WORKDIR
 
+function get_inputs() {
 	# get and validate IP
 	ip_regex="^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$"
 	while true; do
@@ -44,6 +45,7 @@ WORKDIR=$HOME/flash
         		echo "Seriously?  Its a 4 character code begnning with P! you can do it.. or maybe you cant?"
     		fi
 	done
+}
 
 function update_packages() {
 	echo "Caching sudo, default credentials are rock/rock"
