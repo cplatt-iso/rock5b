@@ -174,6 +174,7 @@ function clean() {
 rm -Rf $WORKDIR
 }
 
+get_inputs
 #update_packages
 #flash_spi
 install_os
