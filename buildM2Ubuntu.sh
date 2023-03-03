@@ -120,7 +120,7 @@ function install_os() {
 	sudo xzcat $WORKDIR/$UBUNTU_IMAGE | sudo dd of=/dev/nvme0n1 bs=1M status=progress
 
 	echo "Fixing partitions to 100% of usable space"
-sudo gdisk $disk <<EOF
+sudo gdisk $DISK <<EOF
 x
 e
 w
