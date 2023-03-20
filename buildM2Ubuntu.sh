@@ -164,7 +164,15 @@ network:
       gateway4: $GATEWAY
 EOB
 systemctl enable docker.service
+mkdir /mnt/boot
+cp -av /boot/* /mnt/boot/
 EOF
+
+echo "reformatting boot partition to ext4"
+umount /mnt/boot
+mkfs.ext4 -F /dev/nvme0n1p1
+mount /dev/nvme0n1p1 /mnt/boot
+cp -av /mnt/mnt/boot/* /mnt/boot
 
 echo "unmounting chroot"
 sudo umount /mnt/dev/pts
