@@ -1,7 +1,10 @@
 #!/bin/bash
 ZERO_KNOWN_MD5="ac581b250fda7a10d07ad11884a16834"
 ZERO_KNOWN_MD5_UNZIPPED="2c7ab85a893283e98c931e9511add182"
-BOOTLOADER_KNOWN_MD5="46de85de37b8e670883e6f6a8bb95776"
+#BOOTLOADER_KNOWN_MD5="46de85de37b8e670883e6f6a8bb95776"
+BOOTLOADER_KNOWN_MD5="1b83982a5979008b4407552152732156"
+BOOTLOADER_IMAGE_URL="https://github.com/huazi-yg/rock5b/releases/download/rock5b/rkspi_loader.img"
+BOOTLOADER_FILENAME="rkspi_loader.img"
 REQUIRED_PACKAGES="curl docker.io python3 python3-pip netplan.io ufw"
 REQUIRED_PACKAGES_PREINSTALL="curl"
 PYTHON_PIP_PACKAGES="mysql.connector pillow google google.api google.cloud"
@@ -79,9 +82,9 @@ function flash_spi() {
 	echo "MD5 matches, proceeding with bootloader"
 
 	echo "Grabbing bootloader"
-	wget -O $WORKDIR/rock-5b-spi-image-g49da44e116d.img https://dl.radxa.com/rock5/sw/images/loader/rock-5b/release/rock-5b-spi-image-g49da44e116d.img
+	wget -O $WORKDIR/$BOOTLOADER_FILENAME $BOOTLOADER_IMAGE_URL
 	echo "Verifying MD5 sum"
-	BOOTLOADER_MD5=$(md5sum "$WORKDIR/rock-5b-spi-image-g49da44e116d.img" |  awk '{print $1}')
+	BOOTLOADER_MD5=$(md5sum "$WORKDIR/$BOOTLOADER_FILENAME" |  awk '{print $1}')
 	echo "$BOOTLOADER_MD5" | od -c
 	echo "$BOOTLOADER_KNOWN_MD5" | od -c
 	[ "$BOOTLOADER_MD5" == "$BOOTLOADER_KNOWN_MD5" ] || { echo "MD5 values do not match, halting"; exit 1; }
@@ -99,12 +102,12 @@ function flash_spi() {
 	[ "$BLOCK_MD5" == "$ZERO_MD5_UNZIPPED" ] || { echo "MD5 of zero.img differs from /dev/mdtblock0, exiting"; exit 1; }
 
 	echo "MD5 validated, flashing m.2 enabled bootloader (this also takes approximately 193 seconds)..."
-	sudo dd if=$WORKDIR/rock-5b-spi-image-g49da44e116d.img of=/dev/mtdblock0
+	sudo dd if=$WORKDIR/$BOOTLOADER_FILENAME of=/dev/mtdblock0
 	sync
 	SPI_BLOCK_MD5=$(sudo md5sum "/dev/mtdblock0" | awk '{print $1}')
 	echo "$SPI_BLOCK_MD5" | od -c
 	echo "$BOOTLOADER_KNOWN_MD5" | od -c
-	[ "$SPI_BLOCK_MD5" == "$BOOTLOADER_KNOWN_MD5" ] || { echo "MD5 $WORKDIR/rock-5b-spi-image-g49da44e116d.img differs from /dev/mtdblock0, exiting"; exit 1; }
+	[ "$SPI_BLOCK_MD5" == "$BOOTLOADER_KNOWN_MD5" ] || { echo "MD5 $WORKDIR/$BOOTLOADER_FILENAME differs from /dev/mtdblock0, exiting"; exit 1; }
 
 	echo "Flash complete.  This device should now boot from a bootable M.2 PCIE drive"
 }
@@ -168,7 +171,7 @@ mkdir /mnt/boot
 cp -av /boot/* /mnt/boot/
 EOF
 
-echo "reformatting boot partition to ext4"
+echo "rreformatting boot partition to ext4"
 umount /mnt/boot
 mkfs.ext4 -F /dev/nvme0n1p1
 mount /dev/nvme0n1p1 /mnt/boot
