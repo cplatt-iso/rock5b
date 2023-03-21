@@ -2,7 +2,9 @@
 
 # This script attempts to automate the process of bootloader and image flashing for a Radxa Rock 5B SBC 
 # configured with an 1TB M.2 NVME disk mounted to the underside M key slot.
-# This has been tested booting and executing from a 64GB micro SDCARD but should work on any booted ubuntu/debian shell. 
+# This has been tested booting and executing from a 64GB micro SDCARD but should work on any booted ubuntu/debian shell.
+
+# this script can be run with a -y switch to bypass user inputs and accept defaults for unattended use.
 
 # Radxa bootloader zero image - prepares bootloader SPI for new image
 ZERO_KNOWN_MD5="ac581b250fda7a10d07ad11884a16834"
@@ -43,6 +45,8 @@ function confirm_overwrite() {
     while true; do
         read -p "Warning: this script will destroy any data on $DISK. Are you sure you want to continue? (y/n): " CONFIRM
         if [[ $CONFIRM =~ ^[Yy]$ ]]; then
+	    echo "Wiping partition table on $DISK"
+    	    sudo dd if=/dev/zero of=$DISK bs=512 count=1
             break
         elif [[ $CONFIRM =~ ^[Nn]$ ]]; then
             exit 0
@@ -53,37 +57,73 @@ function confirm_overwrite() {
 }
 
 function get_inputs() {
-        # get IP address and gateway information
-        read -p "Do you want to use DHCP? (y/n): " USE_DHCP
 
-        if [[ $USE_DHCP =~ ^[Yy]$ ]]; then
-            # use DHCP
-            IPADDRESS="dhcp"
-            GATEWAY="dhcp"
-        else
-            # get and validate IP
-            ip_regex="^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$"
-            while true; do
-                read -p "Enter an IP address in slash notation (e.g. 192.168.0.1/24): " IPADDRESS
-                if [[ $IPADDRESS =~ $ip_regex ]]; then
-                    break
-                else
-                    echo "Invalid IP format, re-enter"
-                fi
-            done
+    if [[ $1 == "-y" ]]; then
+        return
+    fi
 
-            # get and validate GATEWAY
-            gw_regex="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
-            while true; do
-                read -p "Gateway IP address (e.g. 192.168.0.1): " GATEWAY
+    read -p "Radxa bootloader zero image URL [default=$ZERO_IMAGE_URL]: " NEW_ZERO_IMAGE_URL
+    ZERO_IMAGE_URL=${NEW_ZERO_IMAGE_URL:-$ZERO_IMAGE_URL}
 
-                if [[ $GATEWAY =~ $gw_regex ]]; then
-                    break
-                else
-                    echo "Invalid IP format, re-enter"
-                fi
-            done
-        fi
+    read -p "Radxa SPI image URL [default=$BOOTLOADER_IMAGE_URL]: " NEW_BOOTLOADER_IMAGE_URL
+    BOOTLOADER_IMAGE_URL=${NEW_BOOTLOADER_IMAGE_URL:-$BOOTLOADER_IMAGE_URL}
+
+    read -p "Required packages [default=$REQUIRED_PACKAGES]: " NEW_REQUIRED_PACKAGES
+    REQUIRED_PACKAGES=${NEW_REQUIRED_PACKAGES:-$REQUIRED_PACKAGES}
+
+    read -p "Python packages [default=$PYTHON_PIP_PACKAGES]: " NEW_PYTHON_PIP_PACKAGES
+    PYTHON_PIP_PACKAGES=${NEW_PYTHON_PIP_PACKAGES:-$PYTHON_PIP_PACKAGES}
+
+    read -p "OS image URL [default=$UBUNTU_IMAGE_URL]: " NEW_UBUNTU_IMAGE_URL
+    UBUNTU_IMAGE_URL=${NEW_UBUNTU_IMAGE_URL:-$UBUNTU_IMAGE_URL}
+
+    read -p "Target device and partitions [default=$DISK]: " NEW_DISK
+    DISK=${NEW_DISK:-$DISK}
+
+    read -p "Boot partition [default=$BOOTPART]: " NEW_BOOTPART
+    BOOTPART=${NEW_BOOTPART:-$BOOTPART}
+
+    read -p "Root partition [default=$ROOTPART]: " NEW_ROOTPART
+    ROOTPART=${NEW_ROOTPART:-$ROOTPART}
+
+    read -p "Internet interface [default=$INET_INTERFACE]: " NEW_INET_INTERFACE
+    INET_INTERFACE=${NEW_INET_INTERFACE:-$INET_INTERFACE}
+
+    # autoassign filename variables
+    ZERO_IMAGE_FILENAME=$(basename $ZERO_IMAGE_URL)
+    BOOTLOADER_FILENAME=$(basename $BOOTLOADER_IMAGE_URL)
+    UBUNTU_IMAGE=$(basename $UBUNTU_IMAGE_URL)
+
+    # get IP address and gateway information
+    read -p "Do you want to use DHCP? (y/n): " USE_DHCP
+
+    if [[ $USE_DHCP =~ ^[Yy]$ ]]; then
+       # use DHCP
+       IPADDRESS="dhcp"
+       GATEWAY="dhcp"
+    else
+       # get and validate IP
+       ip_regex="^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$"
+       while true; do
+           read -p "Enter an IP address in slash notation (e.g. 192.168.0.1/24): " IPADDRESS
+             if [[ $IPADDRESS =~ $ip_regex ]]; then
+                break
+             else
+                echo "Invalid IP format, re-enter"
+             fi
+       done
+
+    # get and validate GATEWAY
+    gw_regex="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
+    while true; do
+         read -p "Gateway IP address (e.g. 192.168.0.1): " GATEWAY
+         if [[ $GATEWAY =~ $gw_regex ]]; then
+             break
+         else
+             echo "Invalid IP format, re-enter"
+         fi
+    done
+    fi
 }
 
 
@@ -101,7 +141,7 @@ function update_packages() {
 
 function flash_spi() {
 	echo "Grabbing bootload zero fill file (reset SPI)"
-	wget -O $WORKDIR/zero.img.gz https://dl.radxa.com/rock5/sw/images/others/zero.img.gz
+	wget -O $WORKDIR/$ZERO_IMAGE_FILENAME $ZERO_IMAGE_URL
 
 	ZERO_MD5=$(md5sum "$WORKDIR/zero.img.gz" | awk '{print $1}')
 	echo "$ZERO_MD5" | od -c
@@ -247,8 +287,8 @@ function clean() {
 rm -Rf $WORKDIR
 }
 
-confirm_overwrite
 get_inputs
+confirm_overwrite
 update_packages
 flash_spi
 install_os
