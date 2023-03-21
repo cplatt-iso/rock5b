@@ -1,59 +1,91 @@
 #!/bin/bash
+
+# This script attempts to automate the process of bootloader and image flashing for a Radxa Rock 5B SBC 
+# configured with an 1TB M.2 NVME disk mounted to the underside M key slot.
+# This has been tested booting and executing from a 64GB micro SDCARD but should work on any booted ubuntu/debian shell. 
+
+# Radxa bootloader zero image - prepares bootloader SPI for new image
 ZERO_KNOWN_MD5="ac581b250fda7a10d07ad11884a16834"
 ZERO_KNOWN_MD5_UNZIPPED="2c7ab85a893283e98c931e9511add182"
-#BOOTLOADER_KNOWN_MD5="46de85de37b8e670883e6f6a8bb95776"
+ZERO_IMAGE_URL="https://dl.radxa.com/rock5/sw/images/others/zero.img.gz"
+ZERO_IMAGE_FILENAME=$(basename $ZERO_IMAGE_URL)
+
+# Radxa SPI image
 BOOTLOADER_KNOWN_MD5="1b83982a5979008b4407552152732156"
 BOOTLOADER_IMAGE_URL="https://github.com/huazi-yg/rock5b/releases/download/rock5b/rkspi_loader.img"
-BOOTLOADER_FILENAME="rkspi_loader.img"
+BOOTLOADER_FILENAME=$(basename $BOOTLOADER_IMAGE_URL)
+
+# This script will chroot to the target image once written and install the following packages in addition to update/upgrade
+# Modify these packages to prepare your OS how you want it.
 REQUIRED_PACKAGES="curl docker.io python3 python3-pip netplan.io ufw"
-REQUIRED_PACKAGES_PREINSTALL="curl"
 PYTHON_PIP_PACKAGES="mysql.connector pillow google google.api google.cloud"
+
+# List of required packages for this script to function
+REQUIRED_PACKAGES_PREINSTALL="curl"
+
+# OS image URL
 UBUNTU_IMAGE_URL="https://github.com/radxa/debos-radxa/releases/download/20221031-1045/rock-5b-ubuntu-focal-server-arm64-20221031-1328-gpt.img.xz"
-UBUNTU_IMAGE="rock-5b-ubuntu-focal-server-arm64-20221031-1328-gpt.img.xz"
+UBUNTU_IMAGE=$(basename $UBUNTU_IMAGE_URL)
+
+# target device and partitions
+# NOTE: this is designed to work with the ubuntu radxa image with 2 partitions written to an NVME disk in the M.2 M key slot on the underside of the board.
 DISK=/dev/nvme0n1
 BOOTPART=/dev/nvme0n1p1
 ROOTPART=/dev/nvme0n1p2
 
+# internet interface (onboard 2.5 ethernet)
 INET_INTERFACE="enP4p65s0"
 
 WORKDIR=$HOME/flash
 [ -d $WORKDIR ] || mkdir $WORKDIR
 
-function get_inputs() {
-	# get and validate IP
-	ip_regex="^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$"
-	while true; do
-		read -p "Enter an IP address in slash notation (e.g. 192.168.0.1/24): " IPADDRESS
-		if [[ $IPADDRESS =~ $ip_regex ]]; then
-  			break
-		else
-    			echo "You embarrass yourself, I hope no one was watching.  Try again."
-		fi
-	done
-
-	# get and validate GATEWAY
-	gw_regex="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
-	while true; do
-    		read -p "Gateway IP address (e.g. 192.168.0.1): " GATEWAY
-
-    		if [[ $GATEWAY =~ $gw_regex ]]; then
-        		break
-    		else
-        		echo "Invalid IP, you're fired."
-    		fi
-	done
-
-	# get and validate PNAME
-	pname_regex="^P.{3}$"
-	while true; do
-		read -p "Enter a 4 character proxy ID (PXXX): " PROXYID
-	      	if [[ $PROXYID =~ $pname_regex ]]; then
-        		break
-    		else
-        		echo "Seriously?  Its a 4 character code begnning with P! you can do it.. or maybe you cant?"
-    		fi
-	done
+function confirm_overwrite() {
+    while true; do
+        read -p "Warning: this script will destroy any data on $DISK. Are you sure you want to continue? (y/n): " CONFIRM
+        if [[ $CONFIRM =~ ^[Yy]$ ]]; then
+            break
+        elif [[ $CONFIRM =~ ^[Nn]$ ]]; then
+            exit 0
+        else
+            echo "Invalid input, please enter y or n."
+        fi
+    done
 }
+
+function get_inputs() {
+        # get IP address and gateway information
+        read -p "Do you want to use DHCP? (y/n): " USE_DHCP
+
+        if [[ $USE_DHCP =~ ^[Yy]$ ]]; then
+            # use DHCP
+            IPADDRESS="dhcp"
+            GATEWAY="dhcp"
+        else
+            # get and validate IP
+            ip_regex="^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$"
+            while true; do
+                read -p "Enter an IP address in slash notation (e.g. 192.168.0.1/24): " IPADDRESS
+                if [[ $IPADDRESS =~ $ip_regex ]]; then
+                    break
+                else
+                    echo "Invalid IP format, re-enter"
+                fi
+            done
+
+            # get and validate GATEWAY
+            gw_regex="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
+            while true; do
+                read -p "Gateway IP address (e.g. 192.168.0.1): " GATEWAY
+
+                if [[ $GATEWAY =~ $gw_regex ]]; then
+                    break
+                else
+                    echo "Invalid IP format, re-enter"
+                fi
+            done
+        fi
+}
+
 
 function update_packages() {
 	echo "Caching sudo, default credentials are rock/rock"
@@ -150,7 +182,7 @@ sudo mount --bind /dev/pts /mnt/dev/pts
 sudo mount --bind /proc /mnt/proc
 sudo mount --bind /sys /mnt/sys
 
-echo "Chroot..."
+echo "Chrooting to configure target operating system"
 sudo chroot /mnt /bin/bash <<EOF
 export DISTRO=focal-stable
 wget -O - apt.radxa.com/$DISTRO/public.key | sudo apt-key add -
@@ -159,7 +191,17 @@ sudo apt upgrade -y
 sudo apt install $REQUIRED_PACKAGES -y
 python3 -m pip install $PYTHON_PIP_PACKAGES
 
-cat <<EOB > /etc/netplan/01-static-ip.yaml
+if [ "$IPADDRESS" = "dhcp" ]; then
+  cat <<EOB > /etc/netplan/01-dhcp.yaml
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    $INET_INTERFACE:
+      dhcp4: yes
+EOB
+else
+  cat <<EOB > /etc/netplan/01-static-ip.yaml
 network:
   version: 2
   renderer: networkd
@@ -169,6 +211,8 @@ network:
         - $IPADDRESS
       gateway4: $GATEWAY
 EOB
+fi
+
 systemctl enable docker.service
 mkdir /mnt/boot
 cp -av /boot/* /mnt/boot/
@@ -176,6 +220,7 @@ sed -i '/\/boot/s|.*|$BOOTPART /boot ext4 defaults 0 2|' /etc/fstab
 EOF
 
 echo "reformatting boot partition to ext4"
+echo "NOTE: this is a hack until images are fixed"
 sudo umount /mnt/boot
 sudo mkfs.ext4 -F $BOOTPART
 sudo mount $BOOTPART /mnt/boot
@@ -188,12 +233,21 @@ sudo umount /mnt/proc
 sudo umount /mnt/sys
 sudo umount /mnt/boot
 sudo umount /mnt
+
+echo "target operating system updated, shut the board down, remove the SDCARD, and reboot"
+if [ "$IPADDRESS" = "dhcp" ]; then
+  echo "your system will be accessible via DHCP assigned IP"
+else
+  echo "your system will be accessible via SSH on IP: [ $IPADDRESS ]"
+fi
+echo "default credentials - user: rock password: rock"
 }
 
 function clean() {
 rm -Rf $WORKDIR
 }
 
+confirm_overwrite
 get_inputs
 update_packages
 flash_spi
