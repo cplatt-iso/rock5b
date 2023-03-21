@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# This script attempts to automate the process of bootloader and image flashing for a Radxa Rock 5B SBC 
+# This script attempts to automate the process of bootloader and os flashing for a Radxa Rock 5B SBC 
 # configured with an 1TB M.2 NVME disk mounted to the underside M key slot.
-# This has been tested booting and executing from a 64GB micro SDCARD but should work on any booted ubuntu/debian shell.
+# This script has been tested running from a 64GB micro SDCARD but should work on any booted ubuntu/debian shell.
 
 # this script can be run with a -y switch to bypass user inputs and accept defaults for unattended use.
 
@@ -68,10 +68,10 @@ function get_inputs() {
     read -p "Radxa SPI image URL [default=$BOOTLOADER_IMAGE_URL]: " NEW_BOOTLOADER_IMAGE_URL
     BOOTLOADER_IMAGE_URL=${NEW_BOOTLOADER_IMAGE_URL:-$BOOTLOADER_IMAGE_URL}
 
-    read -p "Required packages [default=$REQUIRED_PACKAGES]: " NEW_REQUIRED_PACKAGES
+    read -p "Required packages space delimited [default=$REQUIRED_PACKAGES]: " NEW_REQUIRED_PACKAGES
     REQUIRED_PACKAGES=${NEW_REQUIRED_PACKAGES:-$REQUIRED_PACKAGES}
 
-    read -p "Python packages [default=$PYTHON_PIP_PACKAGES]: " NEW_PYTHON_PIP_PACKAGES
+    read -p "Python packages space delimited [default=$PYTHON_PIP_PACKAGES]: " NEW_PYTHON_PIP_PACKAGES
     PYTHON_PIP_PACKAGES=${NEW_PYTHON_PIP_PACKAGES:-$PYTHON_PIP_PACKAGES}
 
     read -p "OS image URL [default=$UBUNTU_IMAGE_URL]: " NEW_UBUNTU_IMAGE_URL
@@ -124,6 +124,30 @@ function get_inputs() {
          fi
     done
     fi
+}
+
+function confirm_variables() {
+    echo "The following variables will be used:"
+    echo "ZERO_IMAGE_URL=$ZERO_IMAGE_URL"
+    echo "BOOTLOADER_IMAGE_URL=$BOOTLOADER_IMAGE_URL"
+    echo "REQUIRED_PACKAGES=$REQUIRED_PACKAGES"
+    echo "PYTHON_PIP_PACKAGES=$PYTHON_PIP_PACKAGES"
+    echo "UBUNTU_IMAGE_URL=$UBUNTU_IMAGE_URL"
+    echo "DISK=$DISK"
+    echo "BOOTPART=$BOOTPART"
+    echo "ROOTPART=$ROOTPART"
+    echo "INET_INTERFACE=$INET_INTERFACE"
+
+    while true; do
+        read -p "Do you want to proceed? (y/n): " CONFIRM
+        if [[ $CONFIRM =~ ^[Yy]$ ]]; then
+            break
+        elif [[ $CONFIRM =~ ^[Nn]$ ]]; then
+            exit 0
+        else
+            echo "Invalid input, please enter y or n."
+        fi
+    done
 }
 
 
@@ -288,6 +312,7 @@ rm -Rf $WORKDIR
 }
 
 get_inputs
+confirm_variables
 confirm_overwrite
 update_packages
 flash_spi
