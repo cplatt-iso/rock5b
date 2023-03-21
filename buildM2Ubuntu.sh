@@ -11,6 +11,9 @@ PYTHON_PIP_PACKAGES="mysql.connector pillow google google.api google.cloud"
 UBUNTU_IMAGE_URL="https://github.com/radxa/debos-radxa/releases/download/20221031-1045/rock-5b-ubuntu-focal-server-arm64-20221031-1328-gpt.img.xz"
 UBUNTU_IMAGE="rock-5b-ubuntu-focal-server-arm64-20221031-1328-gpt.img.xz"
 DISK=/dev/nvme0n1
+BOOTPART=/dev/nvme0n1p1
+ROOTPART=/dev/nvme0n1p2
+
 INET_INTERFACE="enP4p65s0"
 
 WORKDIR=$HOME/flash
@@ -133,15 +136,15 @@ Y
 Y
 EOF
 sudo parted $DISK --script -- resizepart 2 100%
-sudo e2fsck -f /dev/nvme0n1p2
-sudo resize2fs /dev/nvme0n1p2
+sudo e2fsck -f $ROOTPART
+sudo resize2fs $ROOTPART
 echo "Drive fixed up, finished installing OS"
 }
 
 function customize_os() {
 echo "Mounting chroot envionment"
-sudo mount /dev/nvme0n1p2 /mnt
-sudo mount /dev/nvme0n1p1 /mnt/boot
+sudo mount $ROOTPART /mnt
+sudo mount $BOOTPART /mnt/boot
 sudo mount --bind /dev /mnt/dev
 sudo mount --bind /dev/pts /mnt/dev/pts
 sudo mount --bind /proc /mnt/proc
@@ -169,13 +172,14 @@ EOB
 systemctl enable docker.service
 mkdir /mnt/boot
 cp -av /boot/* /mnt/boot/
+sed -i '/\/boot/s|.*|$BOOTPART /boot ext4 defaults 0 2|' /etc/fstab
 EOF
 
-echo "rreformatting boot partition to ext4"
-umount /mnt/boot
-mkfs.ext4 -F /dev/nvme0n1p1
-mount /dev/nvme0n1p1 /mnt/boot
-cp -av /mnt/mnt/boot/* /mnt/boot
+echo "reformatting boot partition to ext4"
+sudo umount /mnt/boot
+sudo mkfs.ext4 -F $BOOTPART
+sudo mount $BOOTPART /mnt/boot
+sudo cp -av /mnt/mnt/boot/* /mnt/boot
 
 echo "unmounting chroot"
 sudo umount /mnt/dev/pts
