@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # This script attempts to automate the process of bootloader and os flashing for a Radxa Rock 5B SBC 
 # configured with an 1TB M.2 NVME disk mounted to the underside M key slot.
@@ -239,14 +240,14 @@ function flash_spi() {
 function install_os() {
 	echo "Installing operating system"
 	echo "Checking for M.2 block device"
-	[ -b $DISK ] || { echo "Unable to locate $DISK, exiting"l exit 1; }
+	[ -b $DISK ] || { echo "Unable to locate $DISK, exiting"; exit 1; }
 	echo "Found $DISK"
 	sudo fdisk -l $DISK
 
 	echo "Nice, downloading operating system"
 	wget -O $WORKDIR/$UBUNTU_IMAGE $UBUNTU_IMAGE_URL
 	echo "Super, writing operating system to disk"
-	sudo xzcat $WORKDIR/$UBUNTU_IMAGE | sudo dd of=/dev/nvme0n1 bs=1M status=progress
+	sudo xzcat $WORKDIR/$UBUNTU_IMAGE | sudo dd of=$DISK bs=1M status=progress
 
 	echo "Fixing partitions to 100% of usable space"
 sudo gdisk $DISK <<EOF
@@ -314,7 +315,9 @@ sudo umount /mnt/boot
 sudo mkfs.ext4 -F $BOOTPART
 sudo mount $BOOTPART /mnt/boot
 sudo cp -av /mnt/mnt/boot/* /mnt/boot
+}
 
+function clean() {
 echo "unmounting chroot"
 sudo umount /mnt/dev/pts
 sudo umount /mnt/dev
@@ -322,6 +325,7 @@ sudo umount /mnt/proc
 sudo umount /mnt/sys
 sudo umount /mnt/boot
 sudo umount /mnt
+rm -Rf $WORKDIR
 
 echo "target operating system updated, shut the board down, remove the SDCARD, and reboot"
 if [ "$IPADDRESS" = "dhcp" ]; then
@@ -330,10 +334,6 @@ else
   echo "your system will be accessible via SSH on IP: [ $IPADDRESS ]"
 fi
 echo "default credentials - user: rock password: rock"
-}
-
-function clean() {
-rm -Rf $WORKDIR
 }
 
 get_inputs
