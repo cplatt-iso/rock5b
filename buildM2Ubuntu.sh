@@ -37,11 +37,18 @@ ROOTPART=/dev/nvme0n1p2
 
 # internet interface (onboard 2.5 ethernet)
 INET_INTERFACE="enP4p65s0"
+IPADDRESS=10.10.0.11/24
+GATEWAY=10.10.0.1
 
 WORKDIR=$HOME/flash
 [ -d $WORKDIR ] || mkdir $WORKDIR
 
 function confirm_overwrite() {
+
+    if [[ $1 == "-y" ]]; then
+        return
+    fi
+
     while true; do
         read -p "Warning: this script will destroy any data on $DISK. Are you sure you want to continue? (y/n): " CONFIRM
         if [[ $CONFIRM =~ ^[Yy]$ ]]; then
@@ -62,16 +69,25 @@ function get_inputs() {
         return
     fi
 
-    read -p "Radxa bootloader zero image URL [default=$ZERO_IMAGE_URL]: " NEW_ZERO_IMAGE_URL
+    read -p "Radxa zero SPI image URL [default=$ZERO_IMAGE_URL]: " NEW_ZERO_IMAGE_URL
     ZERO_IMAGE_URL=${NEW_ZERO_IMAGE_URL:-$ZERO_IMAGE_URL}
+
+    read -p "Radxa zero SPI image MD5 (as downloaded) [default=$ZERO_KNOWN_MD5]: " NEW_ZERO_KNOWN_MD5
+    ZERO_KNOWN_MD5=${NEW_ZERO_KNOWN_MD5:-$ZERO_KNOWN_MD5}
+
+    read -p "Radxa zero SPI image MD5 (decompressed)  [default=$ZERO_KNOWN_MD5_UNZIPPED]: " NEW_ZERO_KNOWN_MD5_UNZIPPED
+    ZERO_KNOWN_MD5_UNZIPPED=${NEW_ZERO_KNOWN_MD5_UNZIPPED:-$ZERO_KNOWN_MD5_UNZIPPED}
 
     read -p "Radxa SPI image URL [default=$BOOTLOADER_IMAGE_URL]: " NEW_BOOTLOADER_IMAGE_URL
     BOOTLOADER_IMAGE_URL=${NEW_BOOTLOADER_IMAGE_URL:-$BOOTLOADER_IMAGE_URL}
 
-    read -p "Required packages space delimited [default=$REQUIRED_PACKAGES]: " NEW_REQUIRED_PACKAGES
+    read -p "Radxa SPI image MD5 [default=$BOOTLOADER_KNOWN_MD5]: " NEW_BOOTLOADER_KNOWN_MD5
+    BOOTLOADER_KNOWN_MD5=${NEW_BOOTLOADER_KNOWN_MD5:-$BOOTLOADER_KNOWN_MD5}
+
+    read -p "Required packages [default=$REQUIRED_PACKAGES]: " NEW_REQUIRED_PACKAGES
     REQUIRED_PACKAGES=${NEW_REQUIRED_PACKAGES:-$REQUIRED_PACKAGES}
 
-    read -p "Python packages space delimited [default=$PYTHON_PIP_PACKAGES]: " NEW_PYTHON_PIP_PACKAGES
+    read -p "Python packages [default=$PYTHON_PIP_PACKAGES]: " NEW_PYTHON_PIP_PACKAGES
     PYTHON_PIP_PACKAGES=${NEW_PYTHON_PIP_PACKAGES:-$PYTHON_PIP_PACKAGES}
 
     read -p "OS image URL [default=$UBUNTU_IMAGE_URL]: " NEW_UBUNTU_IMAGE_URL
@@ -105,8 +121,9 @@ function get_inputs() {
        # get and validate IP
        ip_regex="^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$"
        while true; do
-           read -p "Enter an IP address in slash notation (e.g. 192.168.0.1/24): " IPADDRESS
-             if [[ $IPADDRESS =~ $ip_regex ]]; then
+           read -p "Enter an IP address in slash notation [defualt=$IPADDRESS]: " NEW_IPADDRESS
+             if [[ $NEW_IPADDRESS =~ $ip_regex ]]; then
+		IPADDRESS=${NEW_IPADDRESS:-$IPADDRESS}
                 break
              else
                 echo "Invalid IP format, re-enter"
@@ -116,8 +133,9 @@ function get_inputs() {
     # get and validate GATEWAY
     gw_regex="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
     while true; do
-         read -p "Gateway IP address (e.g. 192.168.0.1): " GATEWAY
-         if [[ $GATEWAY =~ $gw_regex ]]; then
+         read -p "Gateway IP address [default=$GATEWAY]: " NEW_GATEWAY
+         if [[ $NEW_GATEWAY =~ $gw_regex ]]; then
+	     GATEWAY=${NEW_GATEWAY:-$GATEWAY}
              break
          else
              echo "Invalid IP format, re-enter"
@@ -127,6 +145,8 @@ function get_inputs() {
 }
 
 function confirm_variables() {
+
+
     echo "The following variables will be used:"
     echo "ZERO_IMAGE_URL=$ZERO_IMAGE_URL"
     echo "BOOTLOADER_IMAGE_URL=$BOOTLOADER_IMAGE_URL"
@@ -137,6 +157,11 @@ function confirm_variables() {
     echo "BOOTPART=$BOOTPART"
     echo "ROOTPART=$ROOTPART"
     echo "INET_INTERFACE=$INET_INTERFACE"
+    
+    if [[ $1 == "-y" ]]; then
+	sleep 5
+        return
+    fi
 
     while true; do
         read -p "Do you want to proceed? (y/n): " CONFIRM
