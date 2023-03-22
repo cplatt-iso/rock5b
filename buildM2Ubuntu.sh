@@ -336,21 +336,21 @@ sudo mount $BOOTPART /mnt/boot
 sudo cp -av /mnt/mnt/boot/* /mnt/boot
 
 if [[ -n "$kernel_package" ]]; then
-    cp "$kernel_package" "${target_directory}/mnt/$(basename "$kernel_package")"
-    chroot "$target_directory" /bin/bash -c "dpkg -i /mnt/$(basename "$kernel_package")"
-    rm "${target_directory}/mnt/$(basename "$kernel_package")"
+    sudo cp "$kernel_package" "${target_directory}/mnt/$(basename "$kernel_package")"
+    sudo chroot "$target_directory" /bin/bash -c "dpkg -i /mnt/$(basename "$kernel_package")"
+    sudo rm "${target_directory}/mnt/$(basename "$kernel_package")"
 fi
 
 if [[ -n "$kernel_headers" ]]; then
-    cp "$kernel_headers" "${target_directory}/mnt/$(basename "$kernel_headers")"
-    chroot "$target_directory" /bin/bash -c "dpkg -i /mnt/$(basename "$kernel_headers")"
-    rm "${target_directory}/mnt/$(basename "$kernel_headers")"
+    sudo cp "$kernel_headers" "${target_directory}/mnt/$(basename "$kernel_headers")"
+    sudo chroot "$target_directory" /bin/bash -c "dpkg -i /mnt/$(basename "$kernel_headers")"
+    sudo rm "${target_directory}/mnt/$(basename "$kernel_headers")"
 fi
 
 if [[ -n "$kernel_libc_dev" ]]; then
-    cp "$kernel_libc_dev" "${target_directory}/mnt/$(basename "$kernel_libc_dev")"
-    chroot "$target_directory" /bin/bash -c "dpkg -i /mnt/$(basename "$kernel_libc_dev")"
-    rm "${target_directory}/mnt/$(basename "$kernel_libc_dev")"
+    sudo cp "$kernel_libc_dev" "${target_directory}/mnt/$(basename "$kernel_libc_dev")"
+    sudo chroot "$target_directory" /bin/bash -c "dpkg -i /mnt/$(basename "$kernel_libc_dev")"
+    sudo rm "${target_directory}/mnt/$(basename "$kernel_libc_dev")"
 fi
 
 }
