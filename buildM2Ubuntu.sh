@@ -35,6 +35,7 @@ UBUNTU_IMAGE=$(basename $UBUNTU_IMAGE_URL)
 DISK=/dev/nvme0n1
 BOOTPART=/dev/nvme0n1p1
 ROOTPART=/dev/nvme0n1p2
+target_directory=/mnt
 
 # internet interface (onboard 2.5 ethernet)
 INET_INTERFACE="enP4p65s0"
@@ -93,6 +94,23 @@ function get_inputs() {
 
     read -p "OS image URL [default=$UBUNTU_IMAGE_URL]: " NEW_UBUNTU_IMAGE_URL
     UBUNTU_IMAGE_URL=${NEW_UBUNTU_IMAGE_URL:-$UBUNTU_IMAGE_URL}
+
+    echo "Do you want to install a custom kernel? [y/N]: "
+    read custom_kernel_response
+	if [[ "$custom_kernel_response" =~ ^[Yy]$ ]]; then
+ 		echo "Enter the path or URL of the custom kernel package:"
+  		read custom_kernel
+
+  		echo "Enter the path or URL of the kernel headers package (optional):"
+ 		read kernel_headers
+
+  		echo "Enter the path or URL of the kernel libc-dev package (optional):"
+  		read kernel_libc_dev
+	else
+  		custom_kernel=""
+  		kernel_headers=""
+  		kernel_libc_dev=""
+	fi
 
     read -p "Target device and partitions [default=$DISK]: " NEW_DISK
     DISK=${NEW_DISK:-$DISK}
@@ -158,6 +176,7 @@ function confirm_variables() {
     echo "BOOTPART=$BOOTPART"
     echo "ROOTPART=$ROOTPART"
     echo "INET_INTERFACE=$INET_INTERFACE"
+    
     
     if [[ $1 == "-y" ]]; then
 	sleep 5
@@ -315,6 +334,25 @@ sudo umount /mnt/boot
 sudo mkfs.ext4 -F $BOOTPART
 sudo mount $BOOTPART /mnt/boot
 sudo cp -av /mnt/mnt/boot/* /mnt/boot
+
+if [[ -n "$kernel_package" ]]; then
+    cp "$kernel_package" "${target_directory}/mnt/$(basename "$kernel_package")"
+    chroot "$target_directory" /bin/bash -c "dpkg -i /mnt/$(basename "$kernel_package")"
+    rm "${target_directory}/mnt/$(basename "$kernel_package")"
+fi
+
+if [[ -n "$kernel_headers" ]]; then
+    cp "$kernel_headers" "${target_directory}/mnt/$(basename "$kernel_headers")"
+    chroot "$target_directory" /bin/bash -c "dpkg -i /mnt/$(basename "$kernel_headers")"
+    rm "${target_directory}/mnt/$(basename "$kernel_headers")"
+fi
+
+if [[ -n "$kernel_libc_dev" ]]; then
+    cp "$kernel_libc_dev" "${target_directory}/mnt/$(basename "$kernel_libc_dev")"
+    chroot "$target_directory" /bin/bash -c "dpkg -i /mnt/$(basename "$kernel_libc_dev")"
+    rm "${target_directory}/mnt/$(basename "$kernel_libc_dev")"
+fi
+
 }
 
 function clean() {
