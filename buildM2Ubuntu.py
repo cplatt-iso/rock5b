@@ -108,9 +108,9 @@ def get_inputs(accept_defaults=False):
 
         custom_kernel_response = input("Do you want to install a custom kernel? [y/N]: ")
         if custom_kernel_response.lower() == "y":
-            custom_kernel_package = choose_package("linux-image*.deb", "custom kernel")
-            kernel_headers_package = choose_package("linux-headers*.deb", "kernel headers")
-            kernel_libc_dev_package = choose_package("linux-libc-dev*.deb", "kernel libc dev")
+            custom_kernel = choose_package("linux-image*.deb", "custom kernel")
+            kernel_headers = choose_package("linux-headers*.deb", "kernel headers")
+            kernel_libc_dev = choose_package("linux-libc-dev*.deb", "kernel libc dev")
         else:
             custom_kernel = ""
             kernel_headers = ""
@@ -164,7 +164,11 @@ def confirm_variables(auto):
         print(f"Kernel headers: {kernel_headers}")
         print(f"Kernel libc-dev: {kernel_libc_dev}")
         confirm_response = input("Are these values correct? (y/n): ")
-        return confirm_response.lower() == 'y'
+        if confirm_response.lower() == 'y':
+            return True
+        else:
+            print("Exiting due to incorrect values.")
+            sys.exit()
     else:
         pass
 
