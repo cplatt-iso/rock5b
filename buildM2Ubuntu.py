@@ -101,27 +101,29 @@ def get_inputs(accept_defaults=False):
                     print("Invalid IP format, re-enter")
 
 def confirm_variables(auto):
-    print("Please confirm the following values:")
-    print(f"Zero SPI image URL: {ZERO_IMAGE_URL}")
-    print(f"Zero SPI image MD5 (as downloaded): {ZERO_KNOWN_MD5}")
-    print(f"Zero SPI image MD5 (decompressed): {ZERO_KNOWN_MD5_UNZIPPED}")
-    print(f"Bootloader SPI image URL: {BOOTLOADER_IMAGE_URL}")
-    print(f"Bootloader SPI image MD5: {BOOTLOADER_KNOWN_MD5}")
-    print(f"Required packages: {REQUIRED_PACKAGES}")
-    print(f"Python packages: {PYTHON_PIP_PACKAGES}")
-    print(f"Ubuntu OS image URL: {UBUNTU_IMAGE_URL}")
-    print(f"Target device and partitions: {DISK}")
-    print(f"Boot partition: {BOOTPART}")
-    print(f"Root partition: {ROOTPART}")
-    print(f"Internet interface: {INET_INTERFACE}")
-    print(f"IP address: {IPADDRESS}")
-    print(f"Gateway: {GATEWAY}")
-    print(f"Custom kernel: {custom_kernel}")
-    print(f"Kernel headers: {kernel_headers}")
-    print(f"Kernel libc-dev: {kernel_libc_dev}")
-
-    confirm_response = input("Are these values correct? (y/n): ")
-    return confirm_response.lower() == 'y'
+    if not auto:
+        print("Please confirm the following values:")
+        print(f"Zero SPI image URL: {ZERO_IMAGE_URL}")
+        print(f"Zero SPI image MD5 (as downloaded): {ZERO_KNOWN_MD5}")
+        print(f"Zero SPI image MD5 (decompressed): {ZERO_KNOWN_MD5_UNZIPPED}")
+        print(f"Bootloader SPI image URL: {BOOTLOADER_IMAGE_URL}")
+        print(f"Bootloader SPI image MD5: {BOOTLOADER_KNOWN_MD5}")
+        print(f"Required packages: {REQUIRED_PACKAGES}")
+        print(f"Python packages: {PYTHON_PIP_PACKAGES}")
+        print(f"Ubuntu OS image URL: {UBUNTU_IMAGE_URL}")
+        print(f"Target device and partitions: {DISK}")
+        print(f"Boot partition: {BOOTPART}")
+        print(f"Root partition: {ROOTPART}")
+        print(f"Internet interface: {INET_INTERFACE}")
+        print(f"IP address: {IPADDRESS}")
+        print(f"Gateway: {GATEWAY}")
+        print(f"Custom kernel: {custom_kernel}")
+        print(f"Kernel headers: {kernel_headers}")
+        print(f"Kernel libc-dev: {kernel_libc_dev}")
+        confirm_response = input("Are these values correct? (y/n): ")
+        return confirm_response.lower() == 'y'
+    else:
+        pass
 
 def update_packages():
     print("Updating repositories and fixing broken radxa public key")
