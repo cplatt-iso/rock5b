@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import hashlib
 import requests
@@ -32,6 +33,11 @@ TARGET_DIRECTORY = "/mnt"
 INET_INTERFACE = "enP4p65s0"
 IPADDRESS = "10.10.0.11/24"
 GATEWAY = "10.10.0.1"
+
+custom_kernel = ""
+kernel_headers = ""
+kernel_libc_dev = ""
+
 
 WORKDIR = os.path.join(os.path.expanduser("~"), "flash")
 
@@ -235,13 +241,13 @@ apt update -y
 apt upgrade -y
 apt install {REQUIRED_PACKAGES} -y
 python3 -m pip install {PYTHON_PIP_PACKAGES}
-if [ "{IPADDRESS}" = "dhcp" ]; then
+if [ "{{IPADDRESS}}" = "dhcp" ]; then
   cat <<EOB > /etc/netplan/01-dhcp.yaml
 network:
   version: 2
   renderer: networkd
   ethernets:
-    {INET_INTERFACE}:
+    {{INET_INTERFACE}}:
       dhcp4: yes
 EOB
 else
