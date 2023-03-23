@@ -100,7 +100,7 @@ def get_inputs(accept_defaults=False):
                 else:
                     print("Invalid IP format, re-enter")
 
-def confirm_variables():
+def confirm_variables(auto):
     print("Please confirm the following values:")
     print(f"Zero SPI image URL: {ZERO_IMAGE_URL}")
     print(f"Zero SPI image MD5 (as downloaded): {ZERO_KNOWN_MD5}")
