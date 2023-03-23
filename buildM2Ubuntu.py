@@ -117,17 +117,14 @@ def confirm_variables():
     confirm_response = input("Are these values correct? (y/n): ")
     return confirm_response.lower() == 'y'
 
-def update_packages(required_packages_preinstall, distro="focal-stable"):
-    print("Caching sudo, default credentials are rock/rock")
-    subprocess.run(["sudo", "-v"])
-
+def update_packages():
     print("Updating repositories and fixing broken radxa public key")
-    subprocess.run(["wget", "-O", "-", f"apt.radxa.com/{distro}/public.key"], stdout=subprocess.PIPE)
-    subprocess.run(["sudo", "apt-key", "add", "-"])
-    subprocess.run(["sudo", "apt", "update", "-y"])
-
+    distro = "focal-stable"
+    subprocess.run(["wget", "-O", "-", f"apt.radxa.com/{distro}/public.key"], capture_output=True, check=True)
+    subprocess.run(["apt-key", "add", "-"], capture_output=True, check=True)
+    subprocess.run(["apt", "update", "-y"], capture_output=True, check=True)
     print("Grabbing required packages")
-    subprocess.run(["sudo", "apt", "install"] + required_packages_preinstall.split() + ["-y"])
+    subprocess.run(["apt", "install"] + REQUIRED_PACKAGES_PREINSTALL.split() + ["-y"], capture_output=True, check=True)
 
 def download_file(url, save_path):
     response = requests.get(url, stream=True)
@@ -145,13 +142,156 @@ def md5sum(file_path):
     return hash_md5.hexdigest()
 
 def flash_spi():
-    # ...
+    print("Grabbing bootloader zero fill file (recommended prior to SPI reflash)")
+    subprocess.run(["wget", "-O", f"{WORKDIR}/{ZERO_IMAGE_FILENAME}", ZERO_IMAGE_URL], check=True)
+
+    zero_md5 = subprocess.run(["md5sum", f"{WORKDIR}/zero.img.gz"], capture_output=True, check=True, text=True).stdout.split()[0]
+    if zero_md5 != ZERO_KNOWN_MD5:
+        print("MD5 values do not match, halting")
+        exit(1)
+
+    print("MD5 sum matched, unpacking and testing again")
+    subprocess.run(["gzip", "-vd", f"{WORKDIR}/zero.img.gz"], check=True)
+
+    zero_md5_unzipped = subprocess.run(["md5sum", f"{WORKDIR}/zero.img"], capture_output=True, check=True, text=True).stdout.split()[0]
+    if zero_md5_unzipped != ZERO_KNOWN_MD5_UNZIPPED:
+        print("MD5 values do not match, halting")
+        exit(1)
+
+    print("MD5 matches, proceeding with bootloader")
+    subprocess.run(["wget", "-O", f"{WORKDIR}/{BOOTLOADER_FILENAME}", BOOTLOADER_IMAGE_URL], check=True)
+
+    bootloader_md5 = subprocess.run(["md5sum", f"{WORKDIR}/{BOOTLOADER_FILENAME}"], capture_output=True, check=True, text=True).stdout.split()[0]
+    if bootloader_md5 != BOOTLOADER_KNOWN_MD5:
+        print("MD5 values do not match, halting")
+        exit(1)
+
+    print("MD5 verification successful, proceeding with flash")
+    if not os.path.exists("/dev/mtdblock0"):
+        print("No flash block device found, halting")
+        exit(1)
+
+    print("Found: /dev/mtdblock0, flashing zero.img (this takes approximately 193 seconds)...")
+    subprocess.run(["dd", f"if={WORKDIR}/zero.img", "of=/dev/mtdblock0"], check=True)
+
+    block_md5 = subprocess.run(["md5sum", "/dev/mtdblock0"], capture_output=True, check=True, text=True).stdout.split()[0]
+    if block_md5 != zero_md5_unzipped:
+        print("MD5 of zero.img differs from /dev/mdtblock0, exiting")
+        exit(1)
+
+    print("MD5 validated, flashing m.2 enabled bootloader (this also takes approximately 193 seconds)...")
+    subprocess.run(["dd", f"if={WORKDIR}/{BOOTLOADER_FILENAME}", "of=/dev/mtdblock0"], check=True)
+
+    subprocess.run(["sync"], check=True)
+
+    spi_block_md5 = subprocess.run(["md5sum", "/dev/mtdblock0"], capture_output=True, check=True, text=True).stdout.split()[0]
+    if spi_block_md5 != BOOTLOADER_KNOWN_MD5:
+        print("MD5 of bootloader differs from /dev/mtdblock0, exiting")
+        exit(1)
+
+    print("Flash complete. This device should now boot from a bootable M.2 PCIE drive")
 
 def install_os():
-    # ...
+    print("Installing operating system")
+    print("Checking for M.2 block device")
+    if not os.path.exists(DISK):
+        print(f"Unable to locate {DISK}, exiting")
+        exit(1)
+
+    print(f"Found {DISK}")
+    subprocess.run(["fdisk", "-l", DISK], check=True)
+
+    print("Nice, downloading operating system")
+    subprocess.run(["wget", "-O", f"{WORKDIR}/{UBUNTU_IMAGE}", UBUNTU_IMAGE_URL], check=True)
+
+    print("Super, writing operating system to disk")
+    with subprocess.Popen(["xzcat", f"{WORKDIR}/{UBUNTU_IMAGE}"], stdout=subprocess.PIPE) as xzcat_process:
+        subprocess.run(["dd", f"of={DISK}", "bs=1M", "status=progress"], stdin=xzcat_process.stdout, check=True)
+
+    print("Fixing partitions to 100% of usable space")
+    gdisk_commands = "x\ne\nw\nY\nY\n"
+    subprocess.run(["gdisk", DISK], input=gdisk_commands, text=True, check=True)
+
+    subprocess.run(["parted", DISK, "--script", "--", "resizepart", "2", "100%"], check=True)
+    subprocess.run(["e2fsck", "-f", ROOTPART], check=True)
+    subprocess.run(["resize2fs", ROOTPART], check=True)
+
+    print("Drive fixed up, finished installing OS")
 
 def customize_os():
-    # ...
+    print("Mounting chroot environment")
+    subprocess.run(["mount", ROOTPART, "/mnt"], check=True)
+    subprocess.run(["mount", BOOTPART, "/mnt/boot"], check=True)
+    subprocess.run(["mount", "--bind", "/dev", "/mnt/dev"], check=True)
+    subprocess.run(["mount", "--bind", "/dev/pts", "/mnt/dev/pts"], check=True)
+    subprocess.run(["mount", "--bind", "/proc", "/mnt/proc"], check=True)
+    subprocess.run(["mount", "--bind", "/sys", "/mnt/sys"], check=True)
+
+    print("Chrooting to configure target operating system")
+    chroot_script = f"""\
+export DISTRO=focal-stable
+wget -O - apt.radxa.com/$DISTRO/public.key | apt-key add -
+apt update -y
+apt upgrade -y
+apt install {REQUIRED_PACKAGES} -y
+python3 -m pip install {PYTHON_PIP_PACKAGES}
+if [ "{IPADDRESS}" = "dhcp" ]; then
+  cat <<EOB > /etc/netplan/01-dhcp.yaml
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    {INET_INTERFACE}:
+      dhcp4: yes
+EOB
+else
+  cat <<EOB > /etc/netplan/01-static-ip.yaml
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    {INET_INTERFACE}:
+      addresses:
+        - {IPADDRESS}
+      gateway4: {GATEWAY}
+EOB
+fi
+systemctl enable docker.service
+mkdir /mnt/boot
+cp -av /boot/* /mnt/boot/
+sed -i '/\\/boot/s|.*|{BOOTPART} /boot ext4 defaults 0 2|' /etc/fstab
+"""
+    subprocess.run(["chroot", "/mnt", "/bin/bash"], input=chroot_script, text=True, check=True)
+
+    print("Reformatting boot partition to ext4")
+    print("NOTE: this is a hack until images are fixed")
+    subprocess.run(["umount", "/mnt/boot"], check=True)
+    subprocess.run(["mkfs.ext4", "-F", BOOTPART], check=True)
+    subprocess.run(["mount", BOOTPART, "/mnt/boot"], check=True)
+    subprocess.run(["cp", "-av", "/mnt/mnt/boot/*", "/mnt/boot"], check=True)
+
+    # Add your logic for handling the kernel_package, kernel_headers, and kernel_libc_dev variables
+    # similar to the bash script
+
+    # Handle kernel_package
+    if kernel_package:
+        kernel_package_basename = os.path.basename(kernel_package)
+        subprocess.run(["cp", kernel_package, f"/mnt/{kernel_package_basename}"], check=True)
+        subprocess.run(["chroot", "/mnt", "/bin/bash", "-c", f"dpkg -i /{kernel_package_basename}"], check=True)
+        subprocess.run(["rm", f"/mnt/{kernel_package_basename}"], check=True)
+
+    # Handle kernel_headers
+    if kernel_headers:
+        kernel_headers_basename = os.path.basename(kernel_headers)
+        subprocess.run(["cp", kernel_headers, f"/mnt/{kernel_headers_basename}"], check=True)
+        subprocess.run(["chroot", "/mnt", "/bin/bash", "-c", f"dpkg -i /{kernel_headers_basename}"], check=True)
+        subprocess.run(["rm", f"/mnt/{kernel_headers_basename}"], check=True)
+
+    if kernel_libc_dev:
+        kernel_libc_dev_basename = os.path.basename(kernel_libc_dev)
+        subprocess.run(["cp", kernel_libc_dev, f"/mnt/{kernel_libc_dev_basename}"], check=True)
+        subprocess.run(["chroot", "/mnt", "/bin/bash", "-c", f"dpkg -i /{kernel_libc_dev_basename}"], check=True)
+        subprocess.run(["rm", f"/mnt/{kernel_libc_dev_basename}"], check=True)
 
 def main():
     auto = '-y' in sys.argv
