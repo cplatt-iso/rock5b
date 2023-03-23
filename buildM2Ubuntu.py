@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import glob
 import hashlib
 import requests
 import subprocess
@@ -41,11 +42,53 @@ kernel_libc_dev = ""
 
 WORKDIR = os.path.join(os.path.expanduser("~"), "flash")
 
-def confirm_overwrite(auto=False):
-    if auto:
+def confirm_overwrite(auto, disk):
+    if auto == "-y":
         return
-    # ...
 
+    while True:
+        confirm = input(f"Warning: this script will destroy any data on {disk}. Are you sure you want to continue? (y/n): ")
+
+        if confirm.lower() == 'y':
+            print(f"Wiping partition table on {disk}")
+            os.system(f"sudo dd if=/dev/zero of={disk} bs=512 count=1")
+            break
+        elif confirm.lower() == 'n':
+            sys.exit(0)
+        else:
+            print("Invalid input, please enter y or n.")
+            
+def choose_package(pattern, description):
+    files = sorted(glob.glob(pattern))
+
+    if files:
+        print(f"Please choose a {description} package:")
+        for index, file in enumerate(files, 1):
+            print(f"{index}. {file}")
+
+        print(f"{len(files) + 1}. URL")
+        print(f"{len(files) + 2}. Custom file path")
+        choice = int(input(f"Enter your choice (1 to {len(files) + 2}): "))
+
+        if 1 <= choice <= len(files):
+            return files[choice - 1]
+        elif choice == len(files) + 1:
+            return input(f"Enter the URL for the {description} package: ")
+        elif choice == len(files) + 2:
+            custom_path = input(f"Enter the custom file path for the {description} package: ")
+            if os.path.isfile(custom_path):
+                return custom_path
+            else:
+                print("File not found. Please try again.")
+                return choose_package(pattern, description)
+        else:
+            print("Invalid choice. Please try again.")
+            return choose_package(pattern, description)
+
+    else:
+        return input(f"Enter the URL for the {description} package: ")
+
+    
 def get_inputs(accept_defaults=False):
     if not accept_defaults:
         global ZERO_IMAGE_URL, ZERO_KNOWN_MD5, ZERO_KNOWN_MD5_UNZIPPED
@@ -65,9 +108,9 @@ def get_inputs(accept_defaults=False):
 
         custom_kernel_response = input("Do you want to install a custom kernel? [y/N]: ")
         if custom_kernel_response.lower() == "y":
-            custom_kernel = input("Enter the path or URL of the custom kernel package: ")
-            kernel_headers = input("Enter the path or URL of the kernel headers package (optional): ")
-            kernel_libc_dev = input("Enter the path or URL of the kernel libc-dev package (optional): ")
+            custom_kernel_package = choose_package("linux-image*.deb", "custom kernel")
+            kernel_headers_package = choose_package("linux-headers*.deb", "kernel headers")
+            kernel_libc_dev_package = choose_package("linux-libc-dev*.deb", "kernel libc dev")
         else:
             custom_kernel = ""
             kernel_headers = ""
@@ -304,7 +347,7 @@ sed -i '/\\/boot/s|.*|{BOOTPART} /boot ext4 defaults 0 2|' /etc/fstab
 def main():
     auto = '-y' in sys.argv
 
-    confirm_overwrite(auto)
+    confirm_overwrite(auto, DISK)
     get_inputs(auto)
     confirm_variables(auto)
 
