@@ -35,9 +35,9 @@ INET_INTERFACE = "enP4p65s0"
 IPADDRESS = "10.10.0.11/24"
 GATEWAY = "10.10.0.1"
 
-custom_kernel = ""
-kernel_headers = ""
-kernel_libc_dev = ""
+custom_kernel = "init"
+kernel_headers = "init"
+kernel_libc_dev = "init"
 
 
 WORKDIR = os.path.join(os.path.expanduser("~"), "flash")
@@ -51,13 +51,13 @@ def confirm_overwrite(auto, disk):
 
         if confirm.lower() == 'y':
             print(f"Wiping partition table on {disk}")
-            os.system(f"sudo dd if=/dev/zero of={disk} bs=512 count=1")
+            os.system(f"dd if=/dev/zero of={disk} bs=512 count=1")
             break
         elif confirm.lower() == 'n':
             sys.exit(0)
         else:
             print("Invalid input, please enter y or n.")
-            
+
 def choose_package(pattern, description):
     files = sorted(glob.glob(pattern))
 
@@ -88,7 +88,7 @@ def choose_package(pattern, description):
     else:
         return input(f"Enter the URL for the {description} package: ")
 
-    
+
 def get_inputs(accept_defaults=False):
     if not accept_defaults:
         global ZERO_IMAGE_URL, ZERO_KNOWN_MD5, ZERO_KNOWN_MD5_UNZIPPED
@@ -96,6 +96,7 @@ def get_inputs(accept_defaults=False):
         global REQUIRED_PACKAGES, PYTHON_PIP_PACKAGES
         global UBUNTU_IMAGE_URL, DISK, BOOTPART, ROOTPART, INET_INTERFACE
         global IPADDRESS, GATEWAY
+        global custom_kernel, kernel_headers, kernel_libc_dev
 
         ZERO_IMAGE_URL = input(f"Radxa zero SPI image URL [default={ZERO_IMAGE_URL}]: ") or ZERO_IMAGE_URL
         ZERO_KNOWN_MD5 = input(f"Radxa zero SPI image MD5 (as downloaded) [default={ZERO_KNOWN_MD5}]: ") or ZERO_KNOWN_MD5
@@ -173,13 +174,26 @@ def confirm_variables(auto):
         pass
 
 def update_packages():
+
+    global WORKDIR
+    global REQUIRED_PACKAGES_PREINSTALL
+
+    if not os.path.exists(WORKDIR):
+        os.makedirs(WORKDIR)
+
+
     print("Updating repositories and fixing broken radxa public key")
-    distro = "focal-stable"
-    subprocess.run(["wget", "-O", "-", f"apt.radxa.com/{distro}/public.key"], capture_output=True, check=True)
-    subprocess.run(["apt-key", "add", "-"], capture_output=True, check=True)
-    subprocess.run(["apt", "update", "-y"], capture_output=True, check=True)
+    export_cmd = f"export DISTRO=focal-stable"
+    wget_cmd = ["wget", "-O", "-", f"apt.radxa.com/focal-stable/public.key"]
+    apt_key_cmd = ["apt-key", "add", "-"]
+    subprocess.run(f"{export_cmd} && {' '.join(wget_cmd)} | {' '.join(apt_key_cmd)}", shell=True, check=True)
+
+    print("Updating package list")
+    subprocess.run(["apt", "update", "-y"], check=True)
+
     print("Grabbing required packages")
-    subprocess.run(["apt", "install"] + REQUIRED_PACKAGES_PREINSTALL.split() + ["-y"], capture_output=True, check=True)
+    subprocess.run(["apt", "install", "-y"] + REQUIRED_PACKAGES_PREINSTALL.split(), check=True)
+
 
 def download_file(url, save_path):
     response = requests.get(url, stream=True)
@@ -316,17 +330,20 @@ mkdir /mnt/boot
 cp -av /boot/* /mnt/boot/
 sed -i '/\\/boot/s|.*|{BOOTPART} /boot ext4 defaults 0 2|' /etc/fstab
 """
+    print ("Running chroot script")
     subprocess.run(["chroot", "/mnt", "/bin/bash"], input=chroot_script, text=True, check=True)
+    print ("Done with chroot script")
 
     print("Reformatting boot partition to ext4")
     print("NOTE: this is a hack until images are fixed")
-    subprocess.run(["umount", "/mnt/boot"], check=True)
+    print(f"Unmounting {BOOTPART}")
+    subprocess.run(["umount", BOOTPART], check=True)
+    print(f"Formatting {BOOTPART} to ext4")
     subprocess.run(["mkfs.ext4", "-F", BOOTPART], check=True)
+    print(f"Remounting {BOOTPART} to /mnt/boot")
     subprocess.run(["mount", BOOTPART, "/mnt/boot"], check=True)
-    subprocess.run(["cp", "-av", "/mnt/mnt/boot/*", "/mnt/boot"], check=True)
-
-    # Add your logic for handling the kernel_package, kernel_headers, and kernel_libc_dev variables
-    # similar to the bash script
+    print("Copying /mnt/mnt/boot/* to new /mnt/boot")
+    subprocess.run(["cp", "-av", "/mnt/mnt/boot/*", "/mnt/boot/"], check=True)
 
     # Handle kernel_package
     if kernel_package:
@@ -356,7 +373,7 @@ def main():
     confirm_variables(auto)
 
     update_packages()
-    flash_spi()
+#    flash_spi()
     install_os()
     customize_os()
 
