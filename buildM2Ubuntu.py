@@ -1,3 +1,12 @@
+#
+# This script is a port of the shell script in this repository with the same filename.  
+# execute with sudo, or as root.  
+# -y switch should accept defaults and perform a silent install.
+#
+# This script attempts to automate many of the steps necessary to flash a Radxa Rock 5b
+# SBC with an m.2 disk present in the underside M.2 slot.
+#
+
 import os
 import re
 import sys
