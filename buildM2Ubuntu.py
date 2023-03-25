@@ -343,7 +343,9 @@ sed -i '/\\/boot/s|.*|{BOOTPART} /boot ext4 defaults 0 2|' /etc/fstab
     print(f"Remounting {BOOTPART} to /mnt/boot")
     subprocess.run(["mount", BOOTPART, "/mnt/boot"], check=True)
     print("Copying /mnt/mnt/boot/* to new /mnt/boot")
-    subprocess.run(["cp", "-av", "/mnt/mnt/boot/*", "/mnt/boot/"], check=True)
+    boot_files = glob.glob("/mnt/mnt/boot/*")
+    for file in boot_files:
+        subprocess.run(["cp", "-av", file, "/mnt/boot/"], check=True)
 
     # Handle kernel_package
     if kernel_package:
