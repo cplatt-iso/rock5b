@@ -97,7 +97,7 @@ def get_inputs(accept_defaults=False):
         global REQUIRED_PACKAGES, PYTHON_PIP_PACKAGES
         global UBUNTU_IMAGE_URL, DISK, BOOTPART, ROOTPART, INET_INTERFACE
         global IPADDRESS, GATEWAY
-        global custom_kernel, kernel_headers, kernel_libc_dev
+        global kernel_package, kernel_headers, kernel_libc_dev
 
         ZERO_IMAGE_URL = input(f"Radxa zero SPI image URL [default={ZERO_IMAGE_URL}]: ") or ZERO_IMAGE_URL
         ZERO_KNOWN_MD5 = input(f"Radxa zero SPI image MD5 (as downloaded) [default={ZERO_KNOWN_MD5}]: ") or ZERO_KNOWN_MD5
@@ -162,7 +162,7 @@ def confirm_variables(auto):
         print(f"Internet interface: {INET_INTERFACE}")
         print(f"IP address: {IPADDRESS}")
         print(f"Gateway: {GATEWAY}")
-        print(f"Custom kernel: {custom_kernel}")
+        print(f"Custom kernel: {kernel_package}")
         print(f"Kernel headers: {kernel_headers}")
         print(f"Kernel libc-dev: {kernel_libc_dev}")
         confirm_response = input("Are these values correct? (y/n): ")
