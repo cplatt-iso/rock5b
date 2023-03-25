@@ -35,9 +35,10 @@ INET_INTERFACE = "enP4p65s0"
 IPADDRESS = "10.10.0.11/24"
 GATEWAY = "10.10.0.1"
 
-custom_kernel = "init"
-kernel_headers = "init"
-kernel_libc_dev = "init"
+kernel_package = None
+kernel_headers = None
+kernel_libc_dev = None
+
 
 
 WORKDIR = os.path.join(os.path.expanduser("~"), "flash")
@@ -109,11 +110,11 @@ def get_inputs(accept_defaults=False):
 
         custom_kernel_response = input("Do you want to install a custom kernel? [y/N]: ")
         if custom_kernel_response.lower() == "y":
-            custom_kernel = choose_package("linux-image*.deb", "custom kernel")
+            kernel_package = choose_package("linux-image*.deb", "custom kernel")
             kernel_headers = choose_package("linux-headers*.deb", "kernel headers")
             kernel_libc_dev = choose_package("linux-libc-dev*.deb", "kernel libc dev")
         else:
-            custom_kernel = ""
+            kernel_package = ""
             kernel_headers = ""
             kernel_libc_dev = ""
 
