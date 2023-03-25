@@ -376,7 +376,7 @@ def main():
     confirm_variables(auto)
 
     update_packages()
-#    flash_spi()
+    flash_spi()
     install_os()
     customize_os()
 
