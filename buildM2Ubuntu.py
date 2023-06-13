@@ -27,12 +27,12 @@ BOOTLOADER_KNOWN_MD5 = "1b83982a5979008b4407552152732156"
 BOOTLOADER_IMAGE_URL = "https://github.com/huazi-yg/rock5b/releases/download/rock5b/rkspi_loader.img"
 BOOTLOADER_FILENAME = os.path.basename(BOOTLOADER_IMAGE_URL)
 
-REQUIRED_PACKAGES = "curl docker.io python3 python3-pip netplan.io ufw"
+REQUIRED_PACKAGES = "inetutils-tools curl docker.io python3 python3-pip netplan.io ufw"
 PYTHON_PIP_PACKAGES = "mysql.connector pillow google google.api google.cloud"
 
 REQUIRED_PACKAGES_PREINSTALL = "curl"
 
-UBUNTU_IMAGE_URL = "https://github.com/radxa/debos-radxa/releases/download/20221031-1045/rock-5b-ubuntu-focal-server-arm64-20221031-1328-gpt.img.xz"
+UBUNTU_IMAGE_URL = "https://github.com/radxa-build/rock-5b/releases/download/b33/rock-5b_ubuntu_jammy_cli_b33.img.xz"
 UBUNTU_IMAGE = os.path.basename(UBUNTU_IMAGE_URL)
 
 DISK = "/dev/nvme0n1"
@@ -41,7 +41,7 @@ ROOTPART = "/dev/nvme0n1p2"
 TARGET_DIRECTORY = "/mnt"
 
 INET_INTERFACE = "enP4p65s0"
-IPADDRESS = "10.10.0.11/24"
+IPADDRESS = "10.10.0.12/24"
 GATEWAY = "10.10.0.1"
 
 kernel_package = None
@@ -192,11 +192,11 @@ def update_packages():
         os.makedirs(WORKDIR)
 
 
-    print("Updating repositories and fixing broken radxa public key")
-    export_cmd = f"export DISTRO=focal-stable"
-    wget_cmd = ["wget", "-O", "-", f"apt.radxa.com/focal-stable/public.key"]
-    apt_key_cmd = ["apt-key", "add", "-"]
-    subprocess.run(f"{export_cmd} && {' '.join(wget_cmd)} | {' '.join(apt_key_cmd)}", shell=True, check=True)
+#    print("Updating repositories and fixing broken radxa public key")
+#    export_cmd = f"export DISTRO=focal-stable"
+#    wget_cmd = ["wget", "-O", "-", f"apt.radxa.com/focal-stable/public.key"]
+#    apt_key_cmd = ["apt-key", "add", "-"]
+#    subprocess.run(f"{export_cmd} && {' '.join(wget_cmd)} | {' '.join(apt_key_cmd)}", shell=True, check=True)
 
     print("Updating package list")
     subprocess.run(["apt", "update", "-y"], check=True)
@@ -288,9 +288,9 @@ def install_os():
         subprocess.run(["dd", f"of={DISK}", "bs=1M", "status=progress"], stdin=xzcat_process.stdout, check=True)
 
     print("Fixing partitions to 100% of usable space")
-    gdisk_commands = "x\ne\nw\nY\nY\n"
+    gdisk_commands = "x\ne\nw\nY\n"
     subprocess.run(["gdisk", DISK], input=gdisk_commands, text=True, check=True)
-
+    subprocess.run(["partprobe"], check=True)
     subprocess.run(["parted", DISK, "--script", "--", "resizepart", "2", "100%"], check=True)
     subprocess.run(["e2fsck", "-f", ROOTPART], check=True)
     subprocess.run(["resize2fs", ROOTPART], check=True)
@@ -300,16 +300,15 @@ def install_os():
 def customize_os():
     print("Mounting chroot environment")
     subprocess.run(["mount", ROOTPART, "/mnt"], check=True)
-    subprocess.run(["mount", BOOTPART, "/mnt/boot"], check=True)
+    subprocess.run(["mount", BOOTPART, "/mnt/config"], check=True)
     subprocess.run(["mount", "--bind", "/dev", "/mnt/dev"], check=True)
     subprocess.run(["mount", "--bind", "/dev/pts", "/mnt/dev/pts"], check=True)
     subprocess.run(["mount", "--bind", "/proc", "/mnt/proc"], check=True)
     subprocess.run(["mount", "--bind", "/sys", "/mnt/sys"], check=True)
+    subprocess.run(["cp", "/etc/resolv.conf", "/mnt/etc/resolv.conf"], check=True)
 
     print("Chrooting to configure target operating system")
     chroot_script = f"""\
-export DISTRO=focal-stable
-wget -O - apt.radxa.com/$DISTRO/public.key | apt-key add -
 apt update -y
 apt upgrade -y
 apt install {REQUIRED_PACKAGES} -y
@@ -336,26 +335,23 @@ network:
 EOB
 fi
 systemctl enable docker.service
-mkdir /mnt/boot
-cp -av /boot/* /mnt/boot/
-sed -i '/\\/boot/s|.*|{BOOTPART} /boot ext4 defaults 0 2|' /etc/fstab
 """
     print ("Running chroot script")
     subprocess.run(["chroot", "/mnt", "/bin/bash"], input=chroot_script, text=True, check=True)
     print ("Done with chroot script")
 
-    print("Reformatting boot partition to ext4")
-    print("NOTE: this is a hack until images are fixed")
-    print(f"Unmounting {BOOTPART}")
-    subprocess.run(["umount", BOOTPART], check=True)
-    print(f"Formatting {BOOTPART} to ext4")
-    subprocess.run(["mkfs.ext4", "-F", BOOTPART], check=True)
-    print(f"Remounting {BOOTPART} to /mnt/boot")
-    subprocess.run(["mount", BOOTPART, "/mnt/boot"], check=True)
-    print("Copying /mnt/mnt/boot/* to new /mnt/boot")
-    boot_files = glob.glob("/mnt/mnt/boot/*")
-    for file in boot_files:
-        subprocess.run(["cp", "-av", file, "/mnt/boot/"], check=True)
+#    print("Reformatting boot partition to ext4")
+#    print("NOTE: this is a hack until images are fixed")
+#    print(f"Unmounting {BOOTPART}")
+#    subprocess.run(["umount", BOOTPART], check=True)
+#    print(f"Formatting {BOOTPART} to ext4")
+#    subprocess.run(["mkfs.ext4", "-F", BOOTPART], check=True)
+#    print(f"Remounting {BOOTPART} to /mnt/boot")
+#    subprocess.run(["mount", BOOTPART, "/mnt/boot"], check=True)
+#    print("Copying /mnt/mnt/boot/* to new /mnt/boot")
+#    boot_files = glob.glob("/mnt/mnt/boot/*")
+#    for file in boot_files:
+#        subprocess.run(["cp", "-av", file, "/mnt/boot/"], check=True)
 
     # Handle kernel_package
     if kernel_package:
@@ -385,7 +381,7 @@ def main():
     confirm_variables(auto)
 
     update_packages()
-    flash_spi()
+ #   flash_spi()
     install_os()
     customize_os()
 
