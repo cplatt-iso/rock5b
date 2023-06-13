@@ -6,7 +6,8 @@
 # This script attempts to automate many of the steps necessary to flash a Radxa Rock 5b
 # SBC with an m.2 disk present in the underside M.2 slot.
 #
-
+# Tested with ubuntu 22.04 on sdcard flashing 22.04 to M.2 on 6/13/2023
+#
 import os
 import re
 import sys
