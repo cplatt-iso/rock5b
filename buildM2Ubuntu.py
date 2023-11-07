@@ -6,7 +6,7 @@
 # This script attempts to automate many of the steps necessary to flash a Radxa Rock 5b
 # SBC with an m.2 disk present in the underside M.2 slot.
 #
-# Tested with ubuntu 22.04 on sdcard flashing 22.04 to M.2 on 6/13/2023
+# Tested with Joshua Riek's ubuntu 22.04 on sdcard flashing 22.04 to M.2 on 6/13/2023
 #
 import os
 import re
@@ -33,7 +33,9 @@ PYTHON_PIP_PACKAGES = "mysql.connector pillow google google.api google.cloud"
 
 REQUIRED_PACKAGES_PREINSTALL = "curl"
 
-UBUNTU_IMAGE_URL = "https://github.com/radxa-build/rock-5b/releases/download/b33/rock-5b_ubuntu_jammy_cli_b33.img.xz"
+# UBUNTU_IMAGE_URL = "https://github.com/radxa-build/rock-5b/releases/download/b33/rock-5b_ubuntu_jammy_cli_b33.img.xz"
+UBUNTU_IMAGE_URL = "https://github.com/Joshua-Riek/ubuntu-rockchip/releases/download/v1.29/ubuntu-22.04.3-preinstalled-server-arm64-rock-5b.img.xz"
+
 UBUNTU_IMAGE = os.path.basename(UBUNTU_IMAGE_URL)
 
 DISK = "/dev/nvme0n1"
@@ -98,7 +100,6 @@ def choose_package(pattern, description):
 
     else:
         return input(f"Enter the URL for the {description} package: ")
-
 
 def get_inputs(accept_defaults=False):
     if not accept_defaults:
@@ -192,7 +193,6 @@ def update_packages():
     if not os.path.exists(WORKDIR):
         os.makedirs(WORKDIR)
 
-
 #    print("Updating repositories and fixing broken radxa public key")
 #    export_cmd = f"export DISTRO=focal-stable"
 #    wget_cmd = ["wget", "-O", "-", f"apt.radxa.com/focal-stable/public.key"]
@@ -204,7 +204,6 @@ def update_packages():
 
     print("Grabbing required packages")
     subprocess.run(["apt", "install", "-y"] + REQUIRED_PACKAGES_PREINSTALL.split(), check=True)
-
 
 def download_file(url, save_path):
     response = requests.get(url, stream=True)
@@ -382,7 +381,7 @@ def main():
     confirm_variables(auto)
 
     update_packages()
- #   flash_spi()
+    flash_spi()
     install_os()
     customize_os()
 
