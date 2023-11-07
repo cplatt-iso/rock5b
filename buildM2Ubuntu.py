@@ -300,7 +300,7 @@ def install_os():
 def customize_os():
     print("Mounting chroot environment")
     subprocess.run(["mount", ROOTPART, "/mnt"], check=True)
-    subprocess.run(["mount", BOOTPART, "/mnt/config"], check=True)
+    subprocess.run(["mount", BOOTPART, "/mnt/boot"], check=True)
     subprocess.run(["mount", "--bind", "/dev", "/mnt/dev"], check=True)
     subprocess.run(["mount", "--bind", "/dev/pts", "/mnt/dev/pts"], check=True)
     subprocess.run(["mount", "--bind", "/proc", "/mnt/proc"], check=True)
