@@ -51,8 +51,6 @@ kernel_package = None
 kernel_headers = None
 kernel_libc_dev = None
 
-
-
 WORKDIR = os.path.join(os.path.expanduser("~"), "flash")
 
 def confirm_overwrite(auto, disk):
@@ -307,6 +305,11 @@ def customize_os():
     subprocess.run(["mount", "--bind", "/sys", "/mnt/sys"], check=True)
     subprocess.run(["cp", "/etc/resolv.conf", "/mnt/etc/resolv.conf"], check=True)
 
+    print("Disabling cloud-init network configuration")
+    cloud_init_net_cfg = "network: {config: disabled}"
+    with open("/mnt/etc/cloud/cloud.cfg.d/99-disable-network-config.cfg", "w") as f:
+        f.write(cloud_init_net_cfg)
+    
     print("Chrooting to configure target operating system")
     chroot_script = f"""\
 apt update -y
