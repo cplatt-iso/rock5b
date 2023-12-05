@@ -291,17 +291,18 @@ def install_os():
 def customize_os():
     print("Mounting chroot environment")
     subprocess.run(["mount", ROOTPART, "/mnt"], check=True)
-    subprocess.run(["mount", BOOTPART, "/mnt/boot"], check=True)
+    # subprocess.run(["mount", BOOTPART, "/mnt/boot"], check=True)
     subprocess.run(["mount", "--bind", "/dev", "/mnt/dev"], check=True)
     subprocess.run(["mount", "--bind", "/dev/pts", "/mnt/dev/pts"], check=True)
     subprocess.run(["mount", "--bind", "/proc", "/mnt/proc"], check=True)
     subprocess.run(["mount", "--bind", "/sys", "/mnt/sys"], check=True)
     subprocess.run(["cp", "/etc/resolv.conf", "/mnt/etc/resolv.conf"], check=True)
 
-    print("Disabling cloud-init network configuration")
-    cloud_init_net_cfg = "network: {config: disabled}"
-    with open("/mnt/etc/cloud/cloud.cfg.d/99-disable-network-config.cfg", "w") as f:
-        f.write(cloud_init_net_cfg)
+    # 22.04 only
+    # print("Disabling cloud-init network configuration")
+    # cloud_init_net_cfg = "network: {config: disabled}"
+    # with open("/mnt/etc/cloud/cloud.cfg.d/99-disable-network-config.cfg", "w") as f:
+    #     f.write(cloud_init_net_cfg)
     
     print("Chrooting to configure target operating system")
     chroot_script = f"""\
@@ -335,18 +336,18 @@ fi
     subprocess.run(["chroot", "/mnt", "/bin/bash"], input=chroot_script, text=True, check=True)
     print ("Done with chroot script")
 
-    print("Reformatting boot partition to ext4")
-    print("NOTE: this is a hack until images are fixed")
-    print(f"Unmounting {BOOTPART}")
-    subprocess.run(["umount", BOOTPART], check=True)
-    print(f"Formatting {BOOTPART} to ext4")
-    subprocess.run(["mkfs.ext4", "-F", BOOTPART], check=True)
-    print(f"Remounting {BOOTPART} to /mnt/boot")
-    subprocess.run(["mount", BOOTPART, "/mnt/boot"], check=True)
-    print("Copying /mnt/mnt/boot/* to new /mnt/boot")
-    boot_files = glob.glob("/mnt/mnt/boot/*")
-    for file in boot_files:
-        subprocess.run(["cp", "-av", file, "/mnt/boot/"], check=True)
+ #   print("Reformatting boot partition to ext4")
+ #   print("NOTE: this is a hack until images are fixed")
+ #   print(f"Unmounting {BOOTPART}")
+ #   subprocess.run(["umount", BOOTPART], check=True)
+ #   print(f"Formatting {BOOTPART} to ext4")
+ #   subprocess.run(["mkfs.ext4", "-F", BOOTPART], check=True)
+ #   print(f"Remounting {BOOTPART} to /mnt/boot")
+ #   subprocess.run(["mount", BOOTPART, "/mnt/boot"], check=True)
+ #   print("Copying /mnt/mnt/boot/* to new /mnt/boot")
+ #   boot_files = glob.glob("/mnt/mnt/boot/*")
+ #   for file in boot_files:
+ #       subprocess.run(["cp", "-av", file, "/mnt/boot/"], check=True)
 
     # Handle kernel_package
     if kernel_package:
