@@ -307,7 +307,7 @@ def customize_os():
     print("Chrooting to configure target operating system")
     chroot_script = f"""\
 apt update -y
-apt upgrade -y
+# apt upgrade -y
 apt install {REQUIRED_PACKAGES} -y
 python3 -m pip install {PYTHON_PIP_PACKAGES}
 if [ "{{IPADDRESS}}" = "dhcp" ]; then
