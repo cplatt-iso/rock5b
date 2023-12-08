@@ -19,8 +19,10 @@ ZERO_KNOWN_MD5_UNZIPPED = "2c7ab85a893283e98c931e9511add182"
 ZERO_IMAGE_URL = "https://dl.radxa.com/rock5/sw/images/others/zero.img.gz"
 ZERO_IMAGE_FILENAME = os.path.basename(ZERO_IMAGE_URL)
 
-BOOTLOADER_KNOWN_MD5 = "1b83982a5979008b4407552152732156"
-BOOTLOADER_IMAGE_URL = "https://github.com/huazi-yg/rock5b/releases/download/rock5b/rkspi_loader.img"
+# BOOTLOADER_KNOWN_MD5 = "1b83982a5979008b4407552152732156"
+# BOOTLOADER_IMAGE_URL = "https://github.com/huazi-yg/rock5b/releases/download/rock5b/rkspi_loader.img"
+BOOTLOADER_IMAGE_URL = "https://dl.radxa.com/rock5/sw/images/loader/rock-5b/release/rock-5b-spi-image-gbf47e81-20230607.img"
+BOOTLOADER_KNOWN_MD5 = "bd21a6459ad33b8189782e4c904d99b3"
 BOOTLOADER_FILENAME = os.path.basename(BOOTLOADER_IMAGE_URL)
 
 REQUIRED_PACKAGES = "inetutils-tools curl python3 python3-pip netplan.io ufw"
