@@ -33,9 +33,7 @@ PYTHON_PIP_PACKAGES = "mysql.connector pillow google google.api google.cloud"
 
 REQUIRED_PACKAGES_PREINSTALL = "curl"
 
-UBUNTU_IMAGE_URL = "https://github.com/radxa-build/rock-5b/releases/download/b39/rock-5b_debian_bullseye_cli_b39.img.xz"
-# UBUNTU_IMAGE_URL = "https://github.com/radxa-build/rock-5b/releases/download/b33/rock-5b_ubuntu_jammy_cli_b33.img.xz"
-# UBUNTU_IMAGE_URL = "https://github.com/Joshua-Riek/ubuntu-rockchip/releases/download/v1.29/ubuntu-22.04.3-preinstalled-server-arm64-rock-5b.img.xz"
+UBUNTU_IMAGE_URL = "https://github.com/Joshua-Riek/ubuntu-rockchip/releases/download/v1.29/ubuntu-22.04.3-preinstalled-server-arm64-rock-5b.img.xz"
 
 UBUNTU_IMAGE = os.path.basename(UBUNTU_IMAGE_URL)
 
@@ -344,19 +342,6 @@ systemctl enable docker.service
     subprocess.run(["chroot", "/mnt", "/bin/bash"], input=chroot_script, text=True, check=True)
     print ("Done with chroot script")
 
-    print("Reformatting boot partition to ext4")
-    print("NOTE: this is a hack until images are fixed")
-    print(f"Unmounting {BOOTPART}")
-    subprocess.run(["umount", BOOTPART], check=True)
-    print(f"Formatting {BOOTPART} to ext4")
-    subprocess.run(["mkfs.ext4", "-F", BOOTPART], check=True)
-    print(f"Remounting {BOOTPART} to /mnt/boot")
-    subprocess.run(["mount", BOOTPART, "/mnt/boot"], check=True)
-    print("Copying /mnt/mnt/boot/* to new /mnt/boot")
-    boot_files = glob.glob("/mnt/mnt/boot/*")
-    for file in boot_files:
-        subprocess.run(["cp", "-av", file, "/mnt/boot/"], check=True)
-
     # Handle kernel_package
     if kernel_package:
         kernel_package_basename = os.path.basename(kernel_package)
@@ -385,7 +370,7 @@ def main():
     confirm_variables(auto)
 
     update_packages()
-    flash_spi()
+    # flash_spi()
     install_os()
     customize_os()
 
