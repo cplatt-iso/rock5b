@@ -33,7 +33,8 @@ PYTHON_PIP_PACKAGES = "mysql.connector pillow google google.api google.cloud"
 
 REQUIRED_PACKAGES_PREINSTALL = "curl"
 
-UBUNTU_IMAGE_URL = "https://github.com/Joshua-Riek/ubuntu-rockchip/releases/download/v1.29/ubuntu-22.04.3-preinstalled-server-arm64-rock-5b.img.xz"
+# UBUNTU_IMAGE_URL = "https://github.com/Joshua-Riek/ubuntu-rockchip/releases/download/v1.29/ubuntu-22.04.3-preinstalled-server-arm64-rock-5b.img.xz"
+UBUNTU_IMAGE_URL = "https://github.com/Joshua-Riek/ubuntu-rockchip/releases/download/v1.32/ubuntu-22.04.3-preinstalled-server-arm64-rock-5b.img.xz"
 
 UBUNTU_IMAGE = os.path.basename(UBUNTU_IMAGE_URL)
 
