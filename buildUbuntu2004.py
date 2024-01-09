@@ -1,6 +1,6 @@
 #
 # Based on the 22.04 script, slimmed down and specific to 20.04 LTS from Radxa
-# skips bootloader flash by default - uncomment to flash bootloader 
+# skips bootloader flash by default - uncomment to flash bootloader
 #
 
 import os
@@ -10,6 +10,7 @@ import glob
 import hashlib
 import requests
 import subprocess
+import shutil
 from urllib.parse import urlparse
 from pathlib import Path
 from getpass import getpass
@@ -19,10 +20,8 @@ ZERO_KNOWN_MD5_UNZIPPED = "2c7ab85a893283e98c931e9511add182"
 ZERO_IMAGE_URL = "https://dl.radxa.com/rock5/sw/images/others/zero.img.gz"
 ZERO_IMAGE_FILENAME = os.path.basename(ZERO_IMAGE_URL)
 
-# BOOTLOADER_KNOWN_MD5 = "1b83982a5979008b4407552152732156"
-# BOOTLOADER_IMAGE_URL = "https://github.com/huazi-yg/rock5b/releases/download/rock5b/rkspi_loader.img"
-BOOTLOADER_IMAGE_URL = "https://dl.radxa.com/rock5/sw/images/loader/rock-5b/release/rock-5b-spi-image-gbf47e81-20230607.img"
-BOOTLOADER_KNOWN_MD5 = "bd21a6459ad33b8189782e4c904d99b3"
+BOOTLOADER_KNOWN_MD5 = "1b83982a5979008b4407552152732156"
+BOOTLOADER_IMAGE_URL = "https://github.com/huazi-yg/rock5b/releases/download/rock5b/rkspi_loader.img"
 BOOTLOADER_FILENAME = os.path.basename(BOOTLOADER_IMAGE_URL)
 
 REQUIRED_PACKAGES = "inetutils-tools curl python3 python3-pip netplan.io ufw"
@@ -30,12 +29,14 @@ PYTHON_PIP_PACKAGES = "mysql.connector pillow google google.api google.cloud"
 
 REQUIRED_PACKAGES_PREINSTALL = "curl"
 
-UBUNTU_IMAGE_URL = "https://github.com/radxa-build/rock-5b/releases/download/b39/rock-5b_debian_bullseye_cli_b39.img.xz"
+#UBUNTU_IMAGE_URL = "https://github.com/radxa-build/rock-5b/releases/download/b39/rock-5b_debian_bullseye_cli_b39.img.xz"
+#UBUNTU_IMAGE_URL = "https://github.com/radxa/rock-pi-s-images-released/releases/download/rock-pi-s-v20210924/rockpis_ubuntu_focal_server_arm64_20210924_0418-gpt.img.gz"
+UBUNTU_IMAGE_URL = "https://github.com/radxa-build/rock-5b/releases/download/20221213-1106/rock-5b-ubuntu-focal-server-arm64-20221213-1217-gpt.img.xz"
 UBUNTU_IMAGE = os.path.basename(UBUNTU_IMAGE_URL)
 
 DISK = "/dev/nvme0n1"
-BOOTPART = "/dev/nvme0n1p2"
-ROOTPART = "/dev/nvme0n1p3"
+BOOTPART = "/dev/nvme0n1p1"
+ROOTPART = "/dev/nvme0n1p2"
 TARGET_DIRECTORY = "/mnt"
 
 INET_INTERFACE = "enP4p65s0"
@@ -47,6 +48,11 @@ kernel_headers = None
 kernel_libc_dev = None
 
 WORKDIR = os.path.join(os.path.expanduser("~"), "flash")
+
+def run_command(command):
+    result = subprocess.run(command, check=False)
+    if result.returncode != 0:
+        raise Exception(f"Command {command} failed with exit code {result.returncode}")
 
 def confirm_overwrite(auto, disk):
     if auto == "-y":
@@ -280,38 +286,77 @@ def install_os():
     with subprocess.Popen(["xzcat", f"{WORKDIR}/{UBUNTU_IMAGE}"], stdout=subprocess.PIPE) as xzcat_process:
         subprocess.run(["dd", f"of={DISK}", "bs=1M", "status=progress"], stdin=xzcat_process.stdout, check=True)
 
-    # print("Fixing partitions to 100% of usable space")
-    # gdisk_commands = "x\ne\nw\nY\n"
-    # subprocess.run(["gdisk", DISK], input=gdisk_commands, text=True, check=True)
-    # subprocess.run(["partprobe"], check=True)
-    # subprocess.run(["parted", DISK, "--script", "--", "resizepart", "2", "100%"], check=True)
-    # subprocess.run(["e2fsck", "-f", ROOTPART], check=True)
-    # subprocess.run(["resize2fs", ROOTPART], check=True)
+    print("Fixing partitions to 100% of usable space")
+    gdisk_commands = "x\ne\nw\nY\n"
+    subprocess.run(["gdisk", DISK], input=gdisk_commands, text=True, check=True)
+    subprocess.run(["partprobe"], check=True)
+    subprocess.run(["parted", DISK, "--script", "--", "resizepart", "2", "100%"], check=True)
+    subprocess.run(["e2fsck", "-f", ROOTPART], check=True)
+    subprocess.run(["resize2fs", ROOTPART], check=True)
 
-    # print("Drive fixed up, finished installing OS")
+    # Fix/reformat boot partition to ext4 from vfat (need to fix 20.04 build, not a problem with 22.04)
+    # Paths and partition
+    temp_dir = "/tmp/bootmnt"
+    partition = "/dev/nvme0n1p1"
+    mount_point = "/mnt/boot"
+
+    # Ensure the temp directory exists
+    if not os.path.exists(temp_dir):
+        os.makedirs(temp_dir)
+
+    # Ensure the mount point exists
+    if not os.path.exists(mount_point):
+        os.makedirs(mount_point)
+
+    # Mount the partition
+    run_command(["mount", partition, mount_point])
+
+    # Copy files from the partition to the temp directory
+    shutil.copytree(mount_point, temp_dir, dirs_exist_ok=True)
+
+    # Unmount the partition
+    run_command(["umount", partition])
+
+    # Format the partition to ext4
+    run_command(["mkfs.ext4", partition])
+
+    # Mount the partition back
+    run_command(["mount", partition, mount_point])
+
+    # Copy files back from the temp directory to the partition
+    shutil.copytree(temp_dir, mount_point, dirs_exist_ok=True)
+
+    # Optionally, unmount the partition and clean up
+    run_command(["umount", partition])
+    shutil.rmtree(temp_dir)
+    shutil.rmtree(mount_point)
+
+    print("Partition reformatted to ext4 and data restored.")
+
 
 def customize_os():
     print("Mounting chroot environment")
     subprocess.run(["mount", ROOTPART, "/mnt"], check=True)
-    # subprocess.run(["mount", BOOTPART, "/mnt/boot"], check=True)
+    subprocess.run(["mount", BOOTPART, "/mnt/boot"], check=True)
     subprocess.run(["mount", "--bind", "/dev", "/mnt/dev"], check=True)
     subprocess.run(["mount", "--bind", "/dev/pts", "/mnt/dev/pts"], check=True)
     subprocess.run(["mount", "--bind", "/proc", "/mnt/proc"], check=True)
     subprocess.run(["mount", "--bind", "/sys", "/mnt/sys"], check=True)
     subprocess.run(["cp", "/etc/resolv.conf", "/mnt/etc/resolv.conf"], check=True)
+    print("Mounting complete")
 
     # 22.04 only
     # print("Disabling cloud-init network configuration")
     # cloud_init_net_cfg = "network: {config: disabled}"
     # with open("/mnt/etc/cloud/cloud.cfg.d/99-disable-network-config.cfg", "w") as f:
     #     f.write(cloud_init_net_cfg)
-    
-    print("Chrooting to configure target operating system")
+
+    print("Chrooting to configure target operating system and running the chroot script:")
     chroot_script = f"""\
 apt update -y
-# apt upgrade -y
+apt upgrade -y
 apt install {REQUIRED_PACKAGES} -y
-python3 -m pip install {PYTHON_PIP_PACKAGES}
+#python3 -m pip install {PYTHON_PIP_PACKAGES}
 if [ "{{IPADDRESS}}" = "dhcp" ]; then
   cat <<EOB > /etc/netplan/01-dhcp.yaml
 network:
@@ -334,22 +379,11 @@ network:
 EOB
 fi
 """
+    print (chroot_script)
     print ("Running chroot script")
     subprocess.run(["chroot", "/mnt", "/bin/bash"], input=chroot_script, text=True, check=True)
     print ("Done with chroot script")
 
- #   print("Reformatting boot partition to ext4")
- #   print("NOTE: this is a hack until images are fixed")
- #   print(f"Unmounting {BOOTPART}")
- #   subprocess.run(["umount", BOOTPART], check=True)
- #   print(f"Formatting {BOOTPART} to ext4")
- #   subprocess.run(["mkfs.ext4", "-F", BOOTPART], check=True)
- #   print(f"Remounting {BOOTPART} to /mnt/boot")
- #   subprocess.run(["mount", BOOTPART, "/mnt/boot"], check=True)
- #   print("Copying /mnt/mnt/boot/* to new /mnt/boot")
- #   boot_files = glob.glob("/mnt/mnt/boot/*")
- #   for file in boot_files:
- #       subprocess.run(["cp", "-av", file, "/mnt/boot/"], check=True)
 
     # Handle kernel_package
     if kernel_package:
@@ -379,7 +413,7 @@ def main():
     confirm_variables(auto)
 
     update_packages()
-    # flash_spi()
+    #flash_spi()
     install_os()
     customize_os()
 
