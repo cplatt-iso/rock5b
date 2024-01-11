@@ -412,7 +412,7 @@ def main():
     get_inputs(auto)
     confirm_variables(auto)
 
-    update_packages()
+    #update_packages()
     #flash_spi()
     install_os()
     customize_os()
