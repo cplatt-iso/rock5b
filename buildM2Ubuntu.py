@@ -35,8 +35,8 @@ REQUIRED_PACKAGES_PREINSTALL = "curl"
 
 # UBUNTU_IMAGE_URL = "https://github.com/Joshua-Riek/ubuntu-rockchip/releases/download/v1.29/ubuntu-22.04.3-preinstalled-server-arm64-rock-5b.img.xz"
 # UBUNTU_IMAGE_URL = "https://github.com/Joshua-Riek/ubuntu-rockchip/releases/download/v1.32/ubuntu-22.04.3-preinstalled-server-arm64-rock-5b.img.xz"
-UBUNTU_IMAGE_URL = "https://github.com/Joshua-Riek/ubuntu-rockchip/releases/download/v2.3.2/ubuntu-24.04-preinstalled-desktop-arm64-rock-5b.img.xz"
-
+#UBUNTU_IMAGE_URL = "https://github.com/Joshua-Riek/ubuntu-rockchip/releases/download/v2.3.2/ubuntu-24.04-preinstalled-desktop-arm64-rock-5b.img.xz"
+UBUNTU_IMAGE_URL =  "https://github.com/Joshua-Riek/ubuntu-rockchip/releases/download/v2.3.2/ubuntu-24.04-preinstalled-server-arm64-rock-5b-plus.img.xz"
 UBUNTU_IMAGE = os.path.basename(UBUNTU_IMAGE_URL)
 
 DISK = "/dev/nvme0n1"
