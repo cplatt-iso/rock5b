@@ -2105,7 +2105,7 @@
 		            temperature = <0x125c0>;     
 		            hysteresis = <0x7d0>;
 		            type = "active";
-		            cooling-level = <4>;         
+		            cooling-level = <3>;         
 		            phandle = <0x59d>;
 		        };
 		    };
@@ -2113,19 +2113,19 @@
 		    cooling-maps {
 		        map0 {
 		            trip = <0x59a>;               
-			    cooling-device = <0x59 1>;
+			    cooling-device = <0x59 0 1>;
 		        };
 		        map1 {
 		            trip = <0x59b>;               
-		            cooling-device = <0x59 2>;
+		            cooling-device = <0x59 0 2>;
 		        };
 		        map2 {
 		            trip = <0x59c>;               
-		            cooling-device = <0x59 3>;
+		            cooling-device = <0x59 0 3>;
 		        };
 		        map3 {
 		            trip = <0x59d>;               
-		            cooling-device = <0x59 4>;
+		            cooling-device = <0x59 0 3>;
 		        };
 		    };
 		};
@@ -11322,8 +11322,9 @@
 	pwm-fan {
 		compatible = "pwm-fan";
 		#cooling-cells = <0x02>;
-		cooling-levels = <0x00 0x40 0x80 0xc0 0xff>;
+		cooling-levels = <0x00 0x80 0xc0 0xff>;
 		pwms = <0x1bd 0x00 0x2710 0x00>;
+		fan-supply = <0x71>;
 		phandle = <0x59>;
 	};
 
